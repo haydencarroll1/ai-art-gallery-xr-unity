@@ -1,0 +1,38 @@
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uilds?/
+[Bb]uild/
+[Ll]ogs/
+[Mm]emoryCaptures/
+UserSettings/
+**/*.csproj
+**/*.sln
+**/*.unityproj
+**/*.pidb
+**/*.booproj
+**/*.svd
+*.user
+*.userprefs
+
+# Rider / VSCode
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Gradle/Xcode caches
+.gradle/
+*.xcworkspace/
+Pods/
+DerivedData/
+
+# If you export builds here
+Build/
+
+# Keep these folders in git (they are important for Unity to restore packages/settings)
+!Packages/
+!ProjectSettings/
+!Assets/

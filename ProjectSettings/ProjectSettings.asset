@@ -145,6 +145,7 @@ PlayerSettings:
   bundleVersion: 1.0.0
   preloadedAssets:
   - {fileID: 11400000, guid: f65b71220b2e44736af55cabe6b377c3, type: 2}
+  - {fileID: 11400000, guid: 8f8c2d8ffcb174d9193f9d5f722526e5, type: 2}
   metroInputSource: 0
   wsaTransparentSwapchain: 0
   m_HolographicPauseOnTrackingLoss: 1
@@ -534,6 +535,9 @@ PlayerSettings:
   - m_BuildTarget: Android
     m_StaticBatching: 1
     m_DynamicBatching: 0
+  - m_BuildTarget: Standalone
+    m_StaticBatching: 1
+    m_DynamicBatching: 0
   m_BuildTargetShaderSettings: []
   m_BuildTargetGraphicsJobs:
   - m_BuildTarget: AndroidPlayer
@@ -580,7 +584,7 @@ PlayerSettings:
   enableCrashReportAPI: 0
   cameraUsageDescription: AR Camera
   locationUsageDescription: 
-  microphoneUsageDescription: 
+  microphoneUsageDescription: VR audio input
   bluetoothUsageDescription: 
   macOSTargetOSVersion: 11.0
   switchNMETAOverride: 

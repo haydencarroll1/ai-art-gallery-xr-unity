@@ -1,0 +1,628 @@
+using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.XR;
+using System.Collections;
+using System.Collections.Generic;
+using Unity.XR.CoreUtils;
+
+// Main controller that coordinates the entire gallery loading pipeline.
+// It runs five steps in order:
+//   1. Load the manifest (from URL, local file, or embedded test data)
+//   2. Apply the theme (colors, mood lighting, fog)
+//   3. Pick the right topology generator and build the room geometry
+//   4. Place frames and pedestals via ArtworkPlacer
+//   5. Download and display all artwork assets
+//
+// To use: add to a GameObject, configure manifest source, call LoadGallery()
+// or set loadOnStart = true.
+
+public class GalleryOrchestrator : MonoBehaviour
+{
+    [Header("Manifest Source")]
+    [Tooltip("Load manifest from remote URL")]
+    public bool loadFromUrl = true;
+
+    [Tooltip("API base URL (for remote loading)")]
+    public string apiBaseUrl = "https://hayden-gallery.workers.dev";
+
+    [Tooltip("Local test file in StreamingAssets (for testing)")]
+    public string localTestFile = "test_manifest.json";
+
+    [Tooltip("Load gallery automatically on Start")]
+    public bool loadOnStart = true;
+
+    [Header("Optional UI")]
+    [Tooltip("Text to show loading status")]
+    public TMPro.TextMeshProUGUI statusText;
+
+    [Tooltip("Text to show errors")]
+    public TMPro.TextMeshProUGUI errorText;
+
+    [Header("Events")]
+    public UnityEvent onLoadStarted;
+    public UnityEvent onLoadComplete;
+    public UnityEvent<string> onLoadFailed;
+
+    [Header("Debug")]
+    public bool debugMode = false;
+
+    [Tooltip("Use embedded test manifest instead of loading from file/URL")]
+    public bool useEmbeddedTestManifest = false;
+
+    [Header("Player Positioning")]
+    [Tooltip("Reference to the XR Origin (will auto-find if not set)")]
+    public XROrigin xrOrigin;
+
+    [Tooltip("How far into the corridor to spawn the player (meters from entry)")]
+    public float playerSpawnDistance = 1.5f;
+
+    [Tooltip("Player height offset from floor (0 = at floor level, XR handles actual height)")]
+    public float playerHeightOffset = 0f;
+
+    // Component references - grabbed in Awake, added automatically if missing
+    private ManifestLoader manifestLoader;
+    private TopologyGenerator activeGenerator;
+    private ArtworkPlacer artworkPlacer;
+
+    // Fallback camera created at runtime when XR is not active
+    private Camera fallbackCamera;
+
+    // Current state of the gallery
+    private GalleryManifest currentManifest;
+    private GalleryLoadState loadState = GalleryLoadState.Idle;
+    private string lastError;
+
+    public GalleryManifest CurrentManifest => currentManifest;
+    public GalleryLoadState LoadState => loadState;
+    public string LastError => lastError;
+
+    void Awake()
+    {
+        Application.targetFrameRate = 30;
+
+        // Make sure ManifestLoader and ArtworkPlacer exist on this GameObject.
+        // If they're not already attached, add them automatically so the
+        // orchestrator works without any manual Inspector setup.
+        manifestLoader = GetComponent<ManifestLoader>();
+        if (manifestLoader == null)
+        {
+            manifestLoader = gameObject.AddComponent<ManifestLoader>();
+        }
+
+        artworkPlacer = GetComponent<ArtworkPlacer>();
+        if (artworkPlacer == null)
+        {
+            artworkPlacer = gameObject.AddComponent<ArtworkPlacer>();
+        }
+
+        // When XR is not active (e.g. Mac desktop build), the XR Origin camera
+        // won't render. Create a simple fallback camera so the scene is visible.
+        if (!XRSettings.isDeviceActive)
+        {
+            SetupFallbackCamera();
+        }
+    }
+
+    void Start()
+    {
+        if (loadOnStart)
+        {
+            LoadGallery();
+        }
+    }
+
+    // Decides which source to load from based on the Inspector toggles.
+    public void LoadGallery()
+    {
+        if (useEmbeddedTestManifest)
+        {
+            LoadFromEmbeddedTestManifest();
+        }
+        else if (loadFromUrl)
+        {
+            LoadFromApi();
+        }
+        else
+        {
+            LoadFromLocalFile();
+        }
+    }
+
+    // Fetches the manifest from the Cloudflare Worker API endpoint.
+    public void LoadFromApi()
+    {
+        string url = $"{apiBaseUrl}/api/gallery";
+        StartCoroutine(LoadGalleryCoroutine(url, isUrl: true));
+    }
+
+    // Loads a JSON file from the StreamingAssets folder (useful for testing
+    // without a network connection).
+    public void LoadFromLocalFile()
+    {
+        StartCoroutine(LoadGalleryCoroutine(localTestFile, isUrl: false));
+    }
+
+    // Parses the hardcoded test JSON at the bottom of this file.
+    // No file I/O needed at all - great for quick iteration.
+    public void LoadFromEmbeddedTestManifest()
+    {
+        StartCoroutine(LoadFromEmbeddedCoroutine());
+    }
+
+    // Tears everything down and rebuilds from scratch.
+    public void Reload()
+    {
+        ClearGallery();
+        LoadGallery();
+    }
+
+    // Destroys all generated geometry and placed artwork so we can start fresh.
+    public void ClearGallery()
+    {
+        // Stop any in-flight download coroutines so callbacks don't fire on
+        // destroyed objects after a reload.
+        StopAllCoroutines();
+
+        if (activeGenerator != null)
+        {
+            activeGenerator.ClearGenerated();
+        }
+
+        if (artworkPlacer != null)
+        {
+            artworkPlacer.ClearAllArtwork();
+        }
+
+        currentManifest = null;
+        loadState = GalleryLoadState.Idle;
+    }
+
+    // Kicks off the loading pipeline. Fetches the manifest from either a URL
+    // or a local file, then hands off to ContinueLoadingFromManifest().
+    private IEnumerator LoadGalleryCoroutine(string source, bool isUrl)
+    {
+        loadState = GalleryLoadState.LoadingManifest;
+        lastError = null;
+
+        UpdateStatus("Loading gallery manifest...");
+        onLoadStarted?.Invoke();
+
+        if (debugMode) Debug.Log($"[GalleryOrchestrator] Loading from: {source}");
+
+        // Step 1: Load the manifest JSON
+        ManifestLoader.LoadResult result = null;
+        bool loadComplete = false;
+
+        if (isUrl)
+        {
+            manifestLoader.LoadFromUrl(source, r => { result = r; loadComplete = true; });
+        }
+        else
+        {
+            manifestLoader.LoadFromStreamingAssets(source, r => { result = r; loadComplete = true; });
+        }
+
+        // Spin until the callback fires
+        while (!loadComplete)
+        {
+            yield return null;
+        }
+
+        if (!result.success)
+        {
+            HandleError(result.error);
+            yield break;
+        }
+
+        currentManifest = result.manifest;
+
+        // Continue with the rest of the pipeline (theme, geometry, placement, assets)
+        yield return StartCoroutine(ContinueLoadingFromManifest());
+    }
+
+    // Same as above but parses the embedded test JSON instead of loading a file.
+    private IEnumerator LoadFromEmbeddedCoroutine()
+    {
+        loadState = GalleryLoadState.LoadingManifest;
+        lastError = null;
+
+        UpdateStatus("Loading test manifest...");
+        onLoadStarted?.Invoke();
+
+        ManifestLoader.LoadResult result = manifestLoader.ParseManifestJson(GetTestManifestJson());
+
+        if (!result.success)
+        {
+            HandleError(result.error);
+            yield break;
+        }
+
+        currentManifest = result.manifest;
+
+        yield return StartCoroutine(ContinueLoadingFromManifest());
+    }
+
+    // Steps 2-5 of the pipeline. Runs after the manifest is successfully parsed.
+    private IEnumerator ContinueLoadingFromManifest()
+    {
+        if (debugMode)
+        {
+            Debug.Log($"[GalleryOrchestrator] Manifest loaded: {currentManifest.GetGalleryId()}");
+            Debug.Log($"[GalleryOrchestrator] Topology: {currentManifest.GetTopology()}");
+        }
+
+        // Step 2: Apply the theme so materials and lighting match the manifest
+        loadState = GalleryLoadState.ApplyingTheme;
+        UpdateStatus("Applying theme...");
+
+        string theme = currentManifest.GetTheme();
+        string mood = currentManifest.derived_parameters?.mood ?? "calm";
+
+        if (ThemeManager.Instance != null)
+        {
+            ThemeManager.Instance.SetTheme(theme, mood);
+            ThemeManager.Instance.ApplyMoodLighting(mood);
+            ThemeManager.Instance.ApplyAtmosphere(theme, mood);
+        }
+
+        yield return null;
+
+        // Step 3: Pick the right generator and build the room geometry
+        loadState = GalleryLoadState.GeneratingGeometry;
+        UpdateStatus("Generating gallery...");
+
+        // The orchestrator should sit at world origin so that wall positions
+        // line up with the placement calculations in TopologyGenerator.
+        if (debugMode)
+        {
+            Debug.Log($"[GalleryOrchestrator] Orchestrator world position: {transform.position}");
+            if (transform.position != Vector3.zero)
+            {
+                Debug.LogWarning("[GalleryOrchestrator] WARNING: Orchestrator is not at world origin! This may cause alignment issues.");
+            }
+        }
+
+        if (!SetupTopologyGenerator())
+        {
+            HandleError($"Unsupported topology: {currentManifest.GetTopology()}");
+            yield break;
+        }
+
+        activeGenerator.SetManifestContext(currentManifest);
+        activeGenerator.Generate(currentManifest.locked_constraints, currentManifest.GetLayoutPlanWrapper());
+
+        // Put the player near the entry so they can start walking through
+        PositionPlayerAtSpawn();
+
+        yield return null;
+
+        // Step 4: Create frames and pedestals at the positions the manifest says
+        loadState = GalleryLoadState.PlacingArtwork;
+        UpdateStatus("Placing artwork...");
+
+        artworkPlacer.PlaceAllArtwork(currentManifest, activeGenerator);
+
+        yield return null;
+
+        // Step 5: Download images and GLB models, apply them to the displays
+        loadState = GalleryLoadState.LoadingAssets;
+        UpdateStatus("Loading artwork...");
+
+        yield return StartCoroutine(LoadAllArtworkAssets());
+
+        // Done!
+        loadState = GalleryLoadState.Complete;
+        UpdateStatus("Gallery loaded!");
+        ClearError();
+
+        onLoadComplete?.Invoke();
+
+        if (debugMode) Debug.Log("[GalleryOrchestrator] Gallery loading complete!");
+    }
+
+    // Creates a fallback camera for non-XR builds (Mac desktop, etc.).
+    // Disables the XR Origin's camera so there's no conflict.
+    private void SetupFallbackCamera()
+    {
+        // Disable the XR Origin camera since it won't work without a headset
+        var xrCam = FindFirstObjectByType<XROrigin>();
+        if (xrCam != null)
+        {
+            var cam = xrCam.GetComponentInChildren<Camera>();
+            if (cam != null) cam.enabled = false;
+        }
+
+        var camObj = new GameObject("FallbackCamera");
+        fallbackCamera = camObj.AddComponent<Camera>();
+        fallbackCamera.tag = "MainCamera";
+        fallbackCamera.clearFlags = CameraClearFlags.Skybox;
+        fallbackCamera.nearClipPlane = 0.01f;
+        fallbackCamera.farClipPlane = 1000f;
+        fallbackCamera.fieldOfView = 70f;
+        camObj.AddComponent<FallbackCameraController>();
+        // Start at a reasonable eye-height position; PositionPlayerAtSpawn will reposition
+        camObj.transform.position = new Vector3(0f, 1.6f, 1.5f);
+
+        if (debugMode) Debug.Log("[GalleryOrchestrator] Created fallback camera (no XR device detected)");
+    }
+
+    // Moves the XR Origin (or fallback camera) to the gallery entry point.
+    private void PositionPlayerAtSpawn()
+    {
+        Vector3 spawnPosition = new Vector3(0f, 1.6f, 1.5f);
+
+        if (activeGenerator != null)
+        {
+            var rooms = activeGenerator.GetGeneratedRooms();
+            if (rooms != null && rooms.Count > 0)
+            {
+                // Pick the first room deterministically by sorting keys.
+                string firstKey = null;
+                foreach (var key in rooms.Keys)
+                {
+                    if (firstKey == null || string.Compare(key, firstKey, System.StringComparison.Ordinal) < 0)
+                        firstKey = key;
+                }
+                var room = rooms[firstKey];
+                float roomBackZ = room.center.z - room.dimensions.length / 2f;
+                spawnPosition = new Vector3(
+                    room.center.x,
+                    room.floorY + 1.6f + playerHeightOffset,
+                    roomBackZ + playerSpawnDistance
+                );
+            }
+        }
+
+        // Position whichever camera system is active
+        if (fallbackCamera != null)
+        {
+            fallbackCamera.transform.position = spawnPosition;
+        }
+        else
+        {
+            if (xrOrigin == null)
+            {
+                xrOrigin = FindFirstObjectByType<XROrigin>();
+            }
+            if (xrOrigin != null)
+            {
+                spawnPosition.y = spawnPosition.y - 1.6f + playerHeightOffset;
+                xrOrigin.transform.position = spawnPosition;
+            }
+            else
+            {
+                Debug.LogWarning("[GalleryOrchestrator] No XR Origin or fallback camera found!");
+            }
+        }
+
+        if (debugMode)
+        {
+            Debug.Log($"[GalleryOrchestrator] Positioned player at: {spawnPosition}");
+        }
+    }
+
+    // Looks at the topology string from the manifest and creates (or reuses)
+    // the matching generator component on this GameObject.
+    private bool SetupTopologyGenerator()
+    {
+        string topology = currentManifest.GetTopology();
+
+        if (activeGenerator != null)
+        {
+            activeGenerator.ClearGenerated();
+        }
+
+        switch (topology)
+        {
+            case TopologyTypes.LinearCorridor:
+                activeGenerator = GetOrAddComponent<LinearCorridorGenerator>();
+                break;
+            case TopologyTypes.LinearWithAlcoves:
+                activeGenerator = GetOrAddComponent<LinearWithAlcovesGenerator>();
+                break;
+            case TopologyTypes.BranchingRooms:
+                activeGenerator = GetOrAddComponent<BranchingRoomsGenerator>();
+                break;
+            case TopologyTypes.HubAndSpoke:
+                activeGenerator = GetOrAddComponent<HubAndSpokeGenerator>();
+                break;
+            case TopologyTypes.OpenHall:
+                activeGenerator = GetOrAddComponent<OpenHallGenerator>();
+                break;
+
+            default:
+                Debug.LogError($"[GalleryOrchestrator] Unsupported topology: {topology}");
+                return false;
+        }
+
+        if (debugMode) Debug.Log($"[GalleryOrchestrator] Using generator: {activeGenerator.GetType().Name}");
+
+        return true;
+    }
+
+    // Returns an existing component of type T, or adds a new one if missing.
+    private T GetOrAddComponent<T>() where T : Component
+    {
+        T component = GetComponent<T>();
+        if (component == null)
+        {
+            component = gameObject.AddComponent<T>();
+        }
+        return component;
+    }
+
+    // Fires off all image and sculpture downloads in parallel, then waits
+    // until every one has finished (or failed). Updates the status text
+    // with a running count so the user can see progress.
+    private IEnumerator LoadAllArtworkAssets()
+    {
+        var imageDisplays = artworkPlacer.ImageDisplays;
+        var sculptureDisplays = artworkPlacer.SculptureDisplays;
+
+        int totalAssets = imageDisplays.Count + sculptureDisplays.Count;
+        int loadedCount = 0;
+        int pendingLoads = totalAssets;
+
+        if (debugMode) Debug.Log($"[GalleryOrchestrator] Loading {totalAssets} assets...");
+
+        // Kick off all image downloads
+        for (int i = 0; i < imageDisplays.Count; i++)
+        {
+            ImageDisplay display = imageDisplays[i];
+            if (display == null) continue;
+
+            // The display's GameObject name matches the asset ID
+            string assetId = display.gameObject.name;
+            ArtworkAsset asset = currentManifest.GetAssetById(assetId);
+
+            if (asset == null || string.IsNullOrEmpty(asset.url))
+            {
+                Debug.LogWarning($"[GalleryOrchestrator] No URL for asset: {assetId}");
+                pendingLoads--;
+                continue;
+            }
+
+            display.LoadImage(asset.url, asset.prompt, (success) =>
+            {
+                pendingLoads--;
+                if (success) loadedCount++;
+            });
+        }
+
+        // Kick off all sculpture downloads
+        for (int i = 0; i < sculptureDisplays.Count; i++)
+        {
+            SculptureDisplay display = sculptureDisplays[i];
+            if (display == null) continue;
+
+            // Pedestal GameObjects are named "Pedestal_<assetId>" so we strip the prefix
+            string objName = display.gameObject.name;
+            string assetId = objName.StartsWith("Pedestal_") ? objName.Substring(9) : objName;
+            ArtworkAsset asset = currentManifest.GetAssetById(assetId);
+
+            if (asset == null || string.IsNullOrEmpty(asset.url))
+            {
+                Debug.LogWarning($"[GalleryOrchestrator] No URL for sculpture: {assetId}");
+                pendingLoads--;
+                continue;
+            }
+
+            display.LoadSculpture(asset.url, asset.prompt, (success) =>
+            {
+                pendingLoads--;
+                if (success) loadedCount++;
+            });
+        }
+
+        // Wait for every download to finish
+        while (pendingLoads > 0)
+        {
+            UpdateStatus($"Loading artwork... ({totalAssets - pendingLoads}/{totalAssets})");
+            yield return new WaitForSeconds(0.1f);
+        }
+
+        if (debugMode)
+        {
+            Debug.Log($"[GalleryOrchestrator] Loaded {loadedCount}/{totalAssets} assets");
+        }
+    }
+
+    // Sets the error state, logs it, updates the UI, and fires the onLoadFailed event.
+    private void HandleError(string error)
+    {
+        lastError = error;
+        loadState = GalleryLoadState.Failed;
+
+        Debug.LogError($"[GalleryOrchestrator] {error}");
+
+        UpdateStatus("Failed to load gallery");
+        UpdateError(error);
+
+        onLoadFailed?.Invoke(error);
+    }
+
+    // UI helpers - safe to call even if the text fields aren't assigned.
+    private void UpdateStatus(string text)
+    {
+        if (statusText != null)
+        {
+            statusText.text = text;
+        }
+    }
+
+    private void UpdateError(string text)
+    {
+        if (errorText != null)
+        {
+            errorText.text = text;
+            errorText.gameObject.SetActive(true);
+        }
+    }
+
+    private void ClearError()
+    {
+        if (errorText != null)
+        {
+            errorText.text = "";
+            errorText.gameObject.SetActive(false);
+        }
+    }
+
+    // Hardcoded test manifest for quick iteration without any file or network I/O.
+    // This creates a simple 6-image linear corridor with modern theme.
+    private string GetTestManifestJson()
+    {
+        return @"{
+  ""gallery_id"": ""test_linear_001"",
+  ""schema_version"": ""2.0"",
+  ""created_at"": ""2025-01-29T12:00:00Z"",
+  ""gallery_style"": ""contemporary"",
+  ""locked_constraints"": {
+    ""topology"": ""linear_corridor"",
+    ""rooms"": [
+      { ""id"": ""main"", ""type"": ""corridor"", ""content_type"": ""2d"", ""content_count"": 6 }
+    ],
+    ""theme"": ""modern"",
+    ""gallery_style"": ""contemporary""
+  },
+  ""derived_parameters"": {
+    ""mood"": ""calm"",
+    ""pacing"": 0.5,
+    ""target_spacing_m"": 2.5
+  },
+  ""layout_plan"": [
+    { ""room_id"": ""main"", ""data"": { ""length"": 15.0, ""width"": 5.0, ""height"": 2.8 } }
+  ],
+  ""placement_plan"": [
+    { ""asset_id"": ""img_001"", ""room_id"": ""main"", ""wall"": ""left"", ""position_along_wall"": 2.5, ""height"": 1.5, ""is_hero"": false },
+    { ""asset_id"": ""img_002"", ""room_id"": ""main"", ""wall"": ""left"", ""position_along_wall"": 7.5, ""height"": 1.5, ""is_hero"": true },
+    { ""asset_id"": ""img_003"", ""room_id"": ""main"", ""wall"": ""left"", ""position_along_wall"": 12.5, ""height"": 1.5, ""is_hero"": false },
+    { ""asset_id"": ""img_004"", ""room_id"": ""main"", ""wall"": ""right"", ""position_along_wall"": 2.5, ""height"": 1.5, ""is_hero"": false },
+    { ""asset_id"": ""img_005"", ""room_id"": ""main"", ""wall"": ""right"", ""position_along_wall"": 7.5, ""height"": 1.5, ""is_hero"": false },
+    { ""asset_id"": ""img_006"", ""room_id"": ""main"", ""wall"": ""right"", ""position_along_wall"": 12.5, ""height"": 1.5, ""is_hero"": false }
+  ],
+  ""assets"": [
+    { ""id"": ""img_001"", ""url"": ""https://picsum.photos/seed/art1/800/600"", ""type"": ""2d"", ""width"": 1.2, ""height"": 0.9, ""visual_weight"": 0.5, ""prompt"": ""Abstract landscape"" },
+    { ""id"": ""img_002"", ""url"": ""https://picsum.photos/seed/art2/600/800"", ""type"": ""2d"", ""width"": 0.9, ""height"": 1.2, ""visual_weight"": 0.8, ""prompt"": ""Portrait study"" },
+    { ""id"": ""img_003"", ""url"": ""https://picsum.photos/seed/art3/800/800"", ""type"": ""2d"", ""width"": 1.0, ""height"": 1.0, ""visual_weight"": 0.6, ""prompt"": ""Nature scene"" },
+    { ""id"": ""img_004"", ""url"": ""https://picsum.photos/seed/art4/800/600"", ""type"": ""2d"", ""width"": 1.2, ""height"": 0.9, ""visual_weight"": 0.5, ""prompt"": ""Urban exploration"" },
+    { ""id"": ""img_005"", ""url"": ""https://picsum.photos/seed/art5/600/800"", ""type"": ""2d"", ""width"": 0.9, ""height"": 1.2, ""visual_weight"": 0.7, ""prompt"": ""Digital art"" },
+    { ""id"": ""img_006"", ""url"": ""https://picsum.photos/seed/art6/800/800"", ""type"": ""2d"", ""width"": 1.0, ""height"": 1.0, ""visual_weight"": 0.5, ""prompt"": ""Surreal composition"" }
+  ]
+}";
+    }
+}
+
+// Tracks where we are in the five-step loading pipeline.
+// The orchestrator moves through these states in order.
+public enum GalleryLoadState
+{
+    Idle,
+    LoadingManifest,
+    ApplyingTheme,
+    GeneratingGeometry,
+    PlacingArtwork,
+    LoadingAssets,
+    Complete,
+    Failed
+}

@@ -1,0 +1,36 @@
+{
+  "gallery_id": "test_linear_001",
+  "schema_version": "2.0",
+  "created_at": "2025-01-29T12:00:00Z",
+  "locked_constraints": {
+    "topology": "linear_corridor",
+    "rooms": [
+      { "id": "main", "type": "corridor", "content_type": "2d", "content_count": 6 }
+    ],
+    "theme": "classical"
+  },
+  "derived_parameters": {
+    "mood": "calm",
+    "pacing": 0.5,
+    "target_spacing_m": 2.5
+  },
+  "layout_plan": [
+    { "room_id": "main", "data": { "length": 15.0, "width": 5.0, "height": 4.0 } }
+  ],
+  "placement_plan": [
+    { "asset_id": "img_001", "room_id": "main", "wall": "left", "position_along_wall": 2.5, "height": 1.5, "is_hero": false },
+    { "asset_id": "img_002", "room_id": "main", "wall": "left", "position_along_wall": 7.5, "height": 1.5, "is_hero": true },
+    { "asset_id": "img_003", "room_id": "main", "wall": "left", "position_along_wall": 12.5, "height": 1.5, "is_hero": false },
+    { "asset_id": "img_004", "room_id": "main", "wall": "right", "position_along_wall": 2.5, "height": 1.5, "is_hero": false },
+    { "asset_id": "img_005", "room_id": "main", "wall": "right", "position_along_wall": 7.5, "height": 1.5, "is_hero": false },
+    { "asset_id": "img_006", "room_id": "main", "wall": "right", "position_along_wall": 12.5, "height": 1.5, "is_hero": false }
+  ],
+  "assets": [
+    { "id": "img_001", "url": "https://picsum.photos/seed/art1/800/600", "type": "2d", "width": 1.2, "height": 0.9, "visual_weight": 0.5, "prompt": "Abstract landscape" },
+    { "id": "img_002", "url": "https://picsum.photos/seed/art2/600/800", "type": "2d", "width": 0.9, "height": 1.2, "visual_weight": 0.8, "prompt": "Portrait study" },
+    { "id": "img_003", "url": "https://picsum.photos/seed/art3/800/800", "type": "2d", "width": 1.0, "height": 1.0, "visual_weight": 0.6, "prompt": "Nature scene" },
+    { "id": "img_004", "url": "https://picsum.photos/seed/art4/800/600", "type": "2d", "width": 1.2, "height": 0.9, "visual_weight": 0.5, "prompt": "Urban exploration" },
+    { "id": "img_005", "url": "https://picsum.photos/seed/art5/600/800", "type": "2d", "width": 0.9, "height": 1.2, "visual_weight": 0.7, "prompt": "Digital art" },
+    { "id": "img_006", "url": "https://picsum.photos/seed/art6/800/800", "type": "2d", "width": 1.0, "height": 1.0, "visual_weight": 0.5, "prompt": "Surreal composition" }
+  ]
+}

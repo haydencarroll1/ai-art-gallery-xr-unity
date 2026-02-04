@@ -1,0 +1,60 @@
+{
+  "gallery_id": "test_hub_001",
+  "schema_version": "2.0",
+  "locked_constraints": {
+    "topology": "hub_and_spoke",
+    "rooms": [
+      { "id": "hub", "type": "hub", "content_type": "sculpture", "content_count": 1 },
+      { "id": "north_gallery", "type": "room_medium", "content_type": "2d", "content_count": 4 },
+      { "id": "east_gallery", "type": "room_small", "content_type": "2d", "content_count": 3 }
+    ]
+  },
+  "layout_plan": [
+    {
+      "room_id": "hub",
+      "data": {
+        "width": 10.0, "depth": 10.0, "height": 5.0,
+        "doorways": [
+          { "wall": "front", "position": 5.0, "width": 2.5, "connects_to": "north_gallery" },
+          { "wall": "right", "position": 5.0, "width": 2.5, "connects_to": "east_gallery" }
+        ]
+      }
+    },
+    {
+      "room_id": "north_gallery",
+      "data": {
+        "width": 6.0, "depth": 7.0, "height": 4.0,
+        "direction_from_hub": "north",
+        "doorways": [{ "wall": "back", "position": 3.0, "width": 2.5, "connects_to": "hub" }]
+      }
+    },
+    {
+      "room_id": "east_gallery",
+      "data": {
+        "width": 7.0, "depth": 5.0, "height": 4.0,
+        "direction_from_hub": "east",
+        "doorways": [{ "wall": "left", "position": 2.5, "width": 2.5, "connects_to": "hub" }]
+      }
+    }
+  ],
+  "placement_plan": [
+    { "asset_id": "sculpt_001", "room_id": "hub", "wall": "center" },
+    { "asset_id": "img_001", "room_id": "north_gallery", "wall": "left", "position_along_wall": 3.5, "height": 1.5 },
+    { "asset_id": "img_002", "room_id": "north_gallery", "wall": "right", "position_along_wall": 3.5, "height": 1.5 },
+    { "asset_id": "img_003", "room_id": "north_gallery", "wall": "front", "position_along_wall": 3.0, "height": 1.5 },
+    { "asset_id": "img_004", "room_id": "north_gallery", "wall": "front", "position_along_wall": 5.0, "height": 1.5 },
+    { "asset_id": "img_005", "room_id": "east_gallery", "wall": "front", "position_along_wall": 2.5, "height": 1.5 },
+    { "asset_id": "img_006", "room_id": "east_gallery", "wall": "front", "position_along_wall": 4.5, "height": 1.5 },
+    { "asset_id": "img_007", "room_id": "east_gallery", "wall": "right", "position_along_wall": 2.5, "height": 1.5 }
+  ],
+  "assets": [
+    { "id": "sculpt_001", "url": "https://example.com/hero_sculpture.glb", "type": "sculpture", "scale": 1.5 },
+    { "id": "img_001", "url": "https://picsum.photos/800/600", "type": "2d", "width": 1.2, "height": 0.9 },
+    { "id": "img_002", "url": "https://picsum.photos/800/600", "type": "2d", "width": 1.2, "height": 0.9 },
+    { "id": "img_003", "url": "https://picsum.photos/800/600", "type": "2d", "width": 1.0, "height": 0.75 },
+    { "id": "img_004", "url": "https://picsum.photos/800/600", "type": "2d", "width": 1.0, "height": 0.75 },
+    { "id": "img_005", "url": "https://picsum.photos/600/800", "type": "2d", "width": 0.9, "height": 1.2 },
+    { "id": "img_006", "url": "https://picsum.photos/600/800", "type": "2d", "width": 0.9, "height": 1.2 },
+    { "id": "img_007", "url": "https://picsum.photos/800/800", "type": "2d", "width": 1.0, "height": 1.0 }
+  ]
+}

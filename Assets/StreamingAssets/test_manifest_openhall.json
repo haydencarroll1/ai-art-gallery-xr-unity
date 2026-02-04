@@ -1,0 +1,44 @@
+{
+  "gallery_id": "test_open_001",
+  "schema_version": "2.0",
+  "locked_constraints": {
+    "topology": "open_hall",
+    "rooms": [
+      { "id": "hall", "type": "open_hall", "content_type": "mixed", "content_count": 8 }
+    ]
+  },
+  "layout_plan": [
+    {
+      "room_id": "hall",
+      "data": {
+        "width": 18.0,
+        "depth": 14.0,
+        "height": 5.0,
+        "partitions": [
+          { "id": "partition_1", "x": 6.0, "z": 7.0, "rotation": 0, "length": 5.0, "height": 3.0 },
+          { "id": "partition_2", "x": 12.0, "z": 7.0, "rotation": 0, "length": 5.0, "height": 3.0 }
+        ]
+      }
+    }
+  ],
+  "placement_plan": [
+    { "asset_id": "img_001", "room_id": "hall", "surface": "wall_left", "position_along": 4.0, "height": 1.5 },
+    { "asset_id": "img_002", "room_id": "hall", "surface": "wall_left", "position_along": 10.0, "height": 1.5 },
+    { "asset_id": "img_003", "room_id": "hall", "surface": "wall_right", "position_along": 4.0, "height": 1.5 },
+    { "asset_id": "img_004", "room_id": "hall", "surface": "wall_right", "position_along": 10.0, "height": 1.5 },
+    { "asset_id": "img_005", "room_id": "hall", "surface": "partition_1", "side": "front", "position_along": 2.5, "height": 1.5 },
+    { "asset_id": "img_006", "room_id": "hall", "surface": "partition_1", "side": "back", "position_along": 2.5, "height": 1.5 },
+    { "asset_id": "img_007", "room_id": "hall", "surface": "partition_2", "side": "front", "position_along": 2.5, "height": 1.5 },
+    { "asset_id": "sculpt_001", "room_id": "hall", "floor_position": { "x": 9.0, "z": 11.0 } }
+  ],
+  "assets": [
+    { "id": "img_001", "url": "https://picsum.photos/800/600", "type": "2d", "width": 1.2, "height": 0.9 },
+    { "id": "img_002", "url": "https://picsum.photos/800/600", "type": "2d", "width": 1.2, "height": 0.9 },
+    { "id": "img_003", "url": "https://picsum.photos/800/600", "type": "2d", "width": 1.2, "height": 0.9 },
+    { "id": "img_004", "url": "https://picsum.photos/800/600", "type": "2d", "width": 1.2, "height": 0.9 },
+    { "id": "img_005", "url": "https://picsum.photos/600/800", "type": "2d", "width": 0.9, "height": 1.2 },
+    { "id": "img_006", "url": "https://picsum.photos/600/800", "type": "2d", "width": 0.9, "height": 1.2 },
+    { "id": "img_007", "url": "https://picsum.photos/800/800", "type": "2d", "width": 1.0, "height": 1.0 },
+    { "id": "sculpt_001", "url": "https://example.com/sculpture.glb", "type": "sculpture", "scale": 1.2 }
+  ]
+}

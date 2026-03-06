@@ -127,7 +127,9 @@ public class ThemeManager : MonoBehaviour
                 GameObject go = new GameObject("ThemeManager (Auto-Created)");
                 _instance = go.AddComponent<ThemeManager>();
                 DontDestroyOnLoad(go);
+#if UNITY_EDITOR
                 Debug.Log("[ThemeManager] Auto-created instance (no Inspector setup needed)");
+#endif
             }
             
             return _instance;
@@ -401,9 +403,8 @@ public class ThemeManager : MonoBehaviour
     // Returns the active palette. Falls back to default so it never returns null.
     public ThemePalette GetPalette() => activePalette ?? BuiltInThemes[ThemeDefaults.Theme];
 
-    // Legacy alias kept for backwards compatibility.
-    public ThemePalette GetColors() => GetPalette();
-    
+    // Removed: GetColors() — dead legacy alias, never called
+
     private void Awake()
     {
         // Handle duplicate instances (e.g., scene reload)
@@ -440,7 +441,9 @@ public class ThemeManager : MonoBehaviour
         
         if (themes == null || themes.Length == 0)
         {
+#if UNITY_EDITOR
             Debug.Log("[ThemeManager] No ScriptableObject themes found - using built-in defaults (this is fine!)");
+#endif
             return;
         }
         
@@ -450,15 +453,13 @@ public class ThemeManager : MonoBehaviour
             loadedAssetThemes[key] = theme;
         }
         
+#if UNITY_EDITOR
         Debug.Log($"[ThemeManager] Loaded {loadedAssetThemes.Count} optional theme assets");
+#endif
     }
     
-    // Apply a theme by its string identifier (e.g. "gothic", "modern").
-    public ThemePalette ApplyTheme(string themeId, string moodId = null)
-    {
-        return SetTheme(themeId, moodId);
-    }
-    
+    // Removed: ApplyTheme() — dead wrapper for SetTheme, never called
+
     // Sets the active theme. Checks ScriptableObject overrides first, then
     // falls back to the built-in dictionary, then to default. Returns the palette.
     public ThemePalette SetTheme(string themeId, string moodId = null)
@@ -485,37 +486,39 @@ public class ThemeManager : MonoBehaviour
         {
             // Convert ThemeConfig to ThemePalette
             activePalette = ConvertThemeConfigToPalette(assetTheme);
+#if UNITY_EDITOR
             Debug.Log($"[ThemeManager] Theme '{currentTheme}' loaded from asset");
+#endif
         }
         // Priority 2: Use built-in hardcoded theme
         else if (BuiltInThemes.TryGetValue(key, out var builtIn))
         {
             activePalette = builtIn.Clone();
+#if UNITY_EDITOR
             Debug.Log($"[ThemeManager] Theme '{currentTheme}' loaded from built-in defaults");
+#endif
         }
         // Fallback: Use default theme
         else
         {
             activePalette = BuiltInThemes[ThemeDefaults.Theme].Clone();
+#if UNITY_EDITOR
             Debug.Log($"[ThemeManager] Theme '{currentTheme}' not found, using default");
+#endif
         }
-        
+
         // Apply mood modifications to palette
         ApplyMoodToPalette(activePalette, currentMood);
-        
+
+#if UNITY_EDITOR
         Debug.Log($"[ThemeManager] Applied theme: {currentTheme}, mood: {currentMood}");
+#endif
         
         return activePalette;
     }
     
-    // Checks whether a theme exists in either the built-in dictionary or loaded assets.
-    public bool HasTheme(string themeId)
-    {
-        if (string.IsNullOrEmpty(themeId)) return false;
-        string key = themeId.ToLowerInvariant();
-        return BuiltInThemes.ContainsKey(key) || loadedAssetThemes.ContainsKey(key);
-    }
-    
+    // Removed: HasTheme() — dead method, never called
+
     // Adjusts the directional light colour and intensity based on mood.
     // Also sets ambient intensity and optional fog for ethereal mood.
     public void ApplyMoodLighting(string mood)
@@ -811,10 +814,12 @@ public class ThemeManager : MonoBehaviour
         }
         
         GameObject lightObj = new GameObject("DirectionalFillLight");
-        Transform room = GameObject.Find("Room_A")?.transform;
-        if (room != null)
+        // Parent to the generated gallery root so the light is cleaned up on reload.
+        // All TopologyGenerator subclasses name this "GeneratedGallery".
+        Transform galleryRoot = GameObject.Find("GeneratedGallery")?.transform;
+        if (galleryRoot != null)
         {
-            lightObj.transform.SetParent(room);
+            lightObj.transform.SetParent(galleryRoot);
             lightObj.transform.localPosition = new Vector3(0, 3f, 0);
             lightObj.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
         }

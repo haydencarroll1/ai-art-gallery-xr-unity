@@ -244,18 +244,8 @@ public class WallSpaceManager
         return gaps;
     }
     
-    /// <summary>
-    /// Clear all registered regions for a room (call when regenerating).
-    /// </summary>
-    public void ClearRoom(string roomId)
-    {
-        var keysToRemove = wallRegions.Keys.Where(k => k.StartsWith(roomId + "_")).ToList();
-        foreach (var key in keysToRemove)
-        {
-            wallRegions.Remove(key);
-        }
-    }
-    
+    // Removed: ClearRoom() — dead method, only ClearAll() is used
+
     /// <summary>
     /// Clear all registered regions.
     /// </summary>
@@ -263,18 +253,6 @@ public class WallSpaceManager
     {
         wallRegions.Clear();
     }
-    
-    /// <summary>
-    /// Get debug info about wall occupancy.
-    /// </summary>
-    public string GetDebugInfo(string roomId, string wallName)
-    {
-        string key = GetWallKey(roomId, wallName);
-        if (!wallRegions.ContainsKey(key) || wallRegions[key].Count == 0)
-            return $"{key}: (empty)";
-        
-        var regions = wallRegions[key];
-        var parts = regions.Select(r => $"[{r.start:F1}-{r.end:F1} {r.type}]");
-        return $"{key}: {string.Join(", ", parts)}";
-    }
+
+    // Removed: GetDebugInfo() — dead method, never called
 }

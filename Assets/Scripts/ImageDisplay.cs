@@ -242,16 +242,5 @@ public class ImageDisplay : MonoBehaviour
         }
     }
 
-    // Clears the current image and shows the loading placeholder again.
-    public void Clear()
-    {
-        currentUrl = null;
-        currentPrompt = null;
-
-        if (loadingTexture != null && mpb != null && displayRenderer != null)
-        {
-            mpb.SetTexture(texturePropertyName, loadingTexture);
-            displayRenderer.SetPropertyBlock(mpb);
-        }
-    }
+    // Removed: Clear() — dead method, ClearAllArtwork destroys the whole GameObject
 }

@@ -29,28 +29,8 @@ public class GalleryManifest
 
     // Cached wrapper built from the layout_plan list on first access.
     [NonSerialized] private LayoutPlanWrapper _layoutPlanCache;
-    [NonSerialized] private Dictionary<string, LayoutData> _layoutMapCache;
 
-    // Returns a flat Dictionary<string, LayoutData> keyed by room_id.
-    // This is the primary accessor for code that needs to look up layout
-    // data by room ID without caring about room vs alcove distinctions.
-    public Dictionary<string, LayoutData> GetLayoutMap()
-    {
-        if (_layoutMapCache != null) return _layoutMapCache;
-
-        _layoutMapCache = new Dictionary<string, LayoutData>();
-
-        if (layout_plan != null)
-        {
-            foreach (var entry in layout_plan)
-            {
-                if (string.IsNullOrEmpty(entry.room_id) || entry.data == null) continue;
-                _layoutMapCache[entry.room_id] = entry.data;
-            }
-        }
-
-        return _layoutMapCache;
-    }
+    // Removed: GetLayoutMap() and _layoutMapCache — dead method, only GetLayoutPlanWrapper() is used
 
     // Converts the List<RoomLayoutEntry> into a LayoutPlanWrapper with
     // separate dictionaries for rooms and alcoves, for fast typed lookup.
@@ -161,21 +141,8 @@ public class GalleryManifest
         return GalleryStyleIds.Contemporary;
     }
 
-    // Count how many 2D images are in the assets list
-    public int GetImageCount()
-    {
-        if (assets != null && assets.Count > 0)
-            return assets.FindAll(a => a.type == "2d").Count;
-        return 0;
-    }
-
-    // Count how many sculptures are in the assets list
-    public int GetSculptureCount()
-    {
-        if (assets != null && assets.Count > 0)
-            return assets.FindAll(a => a.type == "sculpture").Count;
-        return 0;
-    }
+    // Removed: GetImageCount() — dead method, never called
+    // Removed: GetSculptureCount() — dead method, never called
 
     // Look up an asset by its ID (used when matching placements to assets)
     public ArtworkAsset GetAssetById(string assetId)
@@ -279,14 +246,8 @@ public class RoomConstraint
     public string type;         // "corridor", "alcove", "hub", "open_hall", "room_small", "room_medium"
     public string content_type; // "2d", "sculpture", "mixed"
     public int content_count;   // how many artworks go in this room
-    
-    // Legacy fields - spatial data should come from layout_plan instead
-    [System.Obsolete("Use layout_plan[id].position_along_parent instead")]
-    public float position_along_parent;
-    [System.Obsolete("Use layout_plan[id].side instead")]
-    public string parent_wall;
-    [System.Obsolete("Use layout_plan[id].doorways instead")]
-    public List<string> doorway_positions;
+
+    // Removed: position_along_parent, parent_wall, doorway_positions — obsolete legacy fields, no code reads them
 }
 
 // Backend-calculated feel values (not user-configured).

@@ -92,11 +92,7 @@ public class ManifestLoader : MonoBehaviour
         StartCoroutine(LoadFromLocalPathCoroutine(path, onComplete));
     }
 
-    // Loads a manifest from any absolute file path on disk.
-    public void LoadFromPath(string absolutePath, Action<LoadResult> onComplete)
-    {
-        StartCoroutine(LoadFromLocalPathCoroutine(absolutePath, onComplete));
-    }
+    // Removed: LoadFromPath() — dead method, never called
 
     private IEnumerator LoadFromLocalPathCoroutine(string path, Action<LoadResult> onComplete)
     {
@@ -200,26 +196,5 @@ public class ManifestLoader : MonoBehaviour
         }
     }
 
-    // Singleton for convenience - GalleryOrchestrator doesn't actually use this
-    // (it grabs ManifestLoader via GetComponent), but it's here in case other
-    // scripts need quick access.
-    private static ManifestLoader _instance;
-
-    public static ManifestLoader Instance
-    {
-        get
-        {
-            if (_instance == null)
-            {
-                _instance = FindFirstObjectByType<ManifestLoader>();
-
-                if (_instance == null)
-                {
-                    GameObject go = new GameObject("ManifestLoader");
-                    _instance = go.AddComponent<ManifestLoader>();
-                }
-            }
-            return _instance;
-        }
-    }
+    // Removed: dead singleton (_instance field + Instance property) — nothing calls it
 }

@@ -36,6 +36,9 @@ public class SculptureDisplay : MonoBehaviour
     // the currently loaded model root
     private GameObject currentModel;
 
+    // Fix: store GltfImport so it can be disposed — it holds native mesh/texture memory
+    private GltfImport _gltfImport;
+
     // current state
     private string currentUrl;
     private string currentPrompt;
@@ -111,9 +114,11 @@ public class SculptureDisplay : MonoBehaviour
         }
 
         // Step 2: Parse the GLB with glTFast (handles all mesh/material setup)
-        var gltf = new GltfImport();
+        // Dispose previous import to free native mesh/texture memory
+        _gltfImport?.Dispose();
+        _gltfImport = new GltfImport();
 
-        var loadTask = gltf.Load(glbData);
+        var loadTask = _gltfImport.Load(glbData);
         yield return new WaitUntil(() => loadTask.IsCompleted);
 
         if (loadTask.IsFaulted || !loadTask.Result)
@@ -134,7 +139,7 @@ public class SculptureDisplay : MonoBehaviour
         currentModel.transform.localRotation = Quaternion.identity;
         currentModel.transform.localScale = Vector3.one;
 
-        var instantiateTask = gltf.InstantiateSceneAsync(currentModel.transform);
+        var instantiateTask = _gltfImport.InstantiateSceneAsync(currentModel.transform);
         yield return new WaitUntil(() => instantiateTask.IsCompleted);
 
         if (instantiateTask.IsFaulted || !instantiateTask.Result)
@@ -231,18 +236,12 @@ public class SculptureDisplay : MonoBehaviour
         }
     }
 
-    // Removes the loaded model and resets to loading state.
-    public void Clear()
+    // Removed: Clear() — never called; ClearAllArtwork destroys the whole GameObject
+
+    // Fix: dispose GltfImport on destroy to free native mesh/texture memory
+    private void OnDestroy()
     {
-        if (currentModel != null)
-        {
-            Destroy(currentModel);
-            currentModel = null;
-        }
-
-        currentUrl = null;
-        currentPrompt = null;
-
-        SetPlaceholderState(loading: true, error: false);
+        _gltfImport?.Dispose();
+        _gltfImport = null;
     }
 }

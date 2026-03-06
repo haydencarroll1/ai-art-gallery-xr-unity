@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.XR;
+using UnityEngine.XR.Management;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.XR.CoreUtils;
@@ -78,7 +79,7 @@ public class GalleryOrchestrator : MonoBehaviour
 
     void Awake()
     {
-        Application.targetFrameRate = 30;
+        // Removed: Application.targetFrameRate = 30 — XR runtime manages frame timing on Quest 3, forcing 30fps causes motion sickness
 
         // Make sure ManifestLoader and ArtworkPlacer exist on this GameObject.
         // If they're not already attached, add them automatically so the
@@ -97,7 +98,16 @@ public class GalleryOrchestrator : MonoBehaviour
 
         // When XR is not active (e.g. Mac desktop build), the XR Origin camera
         // won't render. Create a simple fallback camera so the scene is visible.
-        if (!XRSettings.isDeviceActive)
+        // Use XRGeneralSettings to check if an XR loader actually initialized,
+        // since XRSettings.isDeviceActive (legacy API) can be unreliable.
+        bool xrActive = false;
+        var xrSettings = XRGeneralSettings.Instance;
+        if (xrSettings != null && xrSettings.Manager != null && xrSettings.Manager.activeLoader != null)
+        {
+            xrActive = true;
+        }
+
+        if (!xrActive)
         {
             SetupFallbackCamera();
         }

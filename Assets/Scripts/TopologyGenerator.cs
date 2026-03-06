@@ -637,10 +637,8 @@ public abstract class TopologyGenerator : MonoBehaviour
         }
     }
 
-    protected static Color Rgb(int r, int g, int b)
-    {
-        return new Color(r / 255f, g / 255f, b / 255f);
-    }
+    // Consolidated: delegates to MaterialUtility.Rgb
+    protected static Color Rgb(int r, int g, int b) => MaterialUtility.Rgb(r, g, b);
 
     // Destroys all generated geometry and clears the room dictionary.
     public virtual void ClearGenerated()
@@ -1840,48 +1838,10 @@ public abstract class TopologyGenerator : MonoBehaviour
         generatedTextures.Clear();
     }
 
-    // Creates a URP Lit material with style-controlled metallic/smoothness settings.
-    // Falls back to Standard or Diffuse shader if URP isn't available.
+    // Consolidated: delegates to MaterialUtility.CreateMaterial
     protected Material CreateMaterial(string name, Color color, float metallic = 0f, float smoothness = 0.1f, Texture2D baseMap = null, Vector2? tiling = null)
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Diffuse");
-
-        if (shader == null)
-        {
-            Debug.LogError("[TopologyGenerator] No shader found!");
-            return null;
-        }
-
-        Material mat = new Material(shader);
-        mat.name = $"Generated_{name}";
-
-        if (mat.HasProperty("_BaseColor"))
-            mat.SetColor("_BaseColor", color);
-        else if (mat.HasProperty("_Color"))
-            mat.SetColor("_Color", color);
-
-        if (mat.HasProperty("_Smoothness"))
-            mat.SetFloat("_Smoothness", smoothness);
-        if (mat.HasProperty("_Metallic"))
-            mat.SetFloat("_Metallic", metallic);
-
-        if (baseMap != null)
-        {
-            if (mat.HasProperty("_BaseMap"))
-                mat.SetTexture("_BaseMap", baseMap);
-            if (mat.HasProperty("_MainTex"))
-                mat.SetTexture("_MainTex", baseMap);
-
-            Vector2 textureTiling = tiling ?? Vector2.one;
-            if (mat.HasProperty("_BaseMap"))
-                mat.SetTextureScale("_BaseMap", textureTiling);
-            if (mat.HasProperty("_MainTex"))
-                mat.SetTextureScale("_MainTex", textureTiling);
-        }
-
-        return mat;
+        return MaterialUtility.CreateMaterial(name, color, metallic, smoothness, baseMap, tiling);
     }
 
     // Creates a quad mesh (4 vertices, 2 triangles) facing in the given direction.
@@ -2044,6 +2004,35 @@ public abstract class TopologyGenerator : MonoBehaviour
         collider.sharedMesh = mesh;
 
         return obj;
+    }
+
+    // Consolidated from BranchingRoomsGenerator and HubAndSpokeGenerator
+    protected void EnsureDirectionalLight()
+    {
+        Light directional = null;
+        Light[] sceneLights = FindObjectsByType<Light>(FindObjectsSortMode.None);
+        for (int i = 0; i < sceneLights.Length; i++)
+        {
+            if (sceneLights[i] != null && sceneLights[i].type == LightType.Directional)
+            {
+                directional = sceneLights[i];
+                break;
+            }
+        }
+
+        if (directional == null)
+        {
+            GameObject lightObj = new GameObject("DirectionalFillLight");
+            lightObj.transform.SetParent(generatedRoot.transform);
+            lightObj.transform.position = new Vector3(0f, 5f, 0f);
+            lightObj.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            directional = lightObj.AddComponent<Light>();
+            directional.type = LightType.Directional;
+        }
+
+        directional.color = GetStyleLightColor();
+        directional.intensity = GetDirectionalFillIntensityForStyle();
+        directional.shadows = LightShadows.None;
     }
 }
 

@@ -335,31 +335,5 @@ public class BranchingRoomsGenerator : TopologyGenerator
         return false;
     }
 
-    private void EnsureDirectionalLight()
-    {
-        Light directional = null;
-        Light[] sceneLights = FindObjectsByType<Light>(FindObjectsSortMode.None);
-        for (int i = 0; i < sceneLights.Length; i++)
-        {
-            if (sceneLights[i] != null && sceneLights[i].type == LightType.Directional)
-            {
-                directional = sceneLights[i];
-                break;
-            }
-        }
-
-        if (directional == null)
-        {
-            GameObject lightObj = new GameObject("DirectionalFillLight");
-            lightObj.transform.SetParent(generatedRoot.transform);
-            lightObj.transform.position = new Vector3(0f, 5f, 0f);
-            lightObj.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-            directional = lightObj.AddComponent<Light>();
-            directional.type = LightType.Directional;
-        }
-
-        directional.color = GetStyleLightColor();
-        directional.intensity = GetDirectionalFillIntensityForStyle();
-        directional.shadows = LightShadows.None;
-    }
+    // Removed: EnsureDirectionalLight() — moved to base class TopologyGenerator
 }

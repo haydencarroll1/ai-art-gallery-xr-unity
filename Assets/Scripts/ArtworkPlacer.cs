@@ -1138,38 +1138,12 @@ public class ArtworkPlacer : MonoBehaviour
         return emergency;
     }
 
-    // Makes a URP Lit material with explicit metallic/smoothness settings.
+    // Consolidated: delegates to MaterialUtility.CreateMaterial
     private Material CreateMaterial(string name, Color color, float metallic = 0f, float smoothness = 0.2f)
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Diffuse");
-        if (shader == null) shader = Shader.Find("Unlit/Color");
-
-        if (shader == null)
-        {
-            Debug.LogError($"[ArtworkPlacer] Failed to find a shader for material '{name}'");
-            return null;
-        }
-
-        Material mat = new Material(shader);
-        mat.name = $"Placed_{name}";
-
-        if (mat.HasProperty("_BaseColor"))
-            mat.SetColor("_BaseColor", color);
-        else if (mat.HasProperty("_Color"))
-            mat.SetColor("_Color", color);
-
-        if (mat.HasProperty("_Smoothness"))
-            mat.SetFloat("_Smoothness", smoothness);
-        if (mat.HasProperty("_Metallic"))
-            mat.SetFloat("_Metallic", metallic);
-
-        return mat;
+        return MaterialUtility.CreateMaterial(name, color, metallic, smoothness);
     }
 
-    private static Color Rgb(int r, int g, int b)
-    {
-        return new Color(r / 255f, g / 255f, b / 255f);
-    }
+    // Consolidated: delegates to MaterialUtility.Rgb
+    private static Color Rgb(int r, int g, int b) => MaterialUtility.Rgb(r, g, b);
 }

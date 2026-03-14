@@ -128,29 +128,17 @@ public abstract class TopologyGenerator : MonoBehaviour
             return null;
         }
 
-        // Use WallSpaceManager for collision avoidance
-        float adjustedPosition = positionAlongWall;
-        float? validPosition = wallSpaceManager.FindValidPosition(roomId, wallName, positionAlongWall, artworkWidth, wall.length);
-        
-        if (validPosition.HasValue)
+        // Audit-only: the backend is authoritative for positions. Log overlap
+        // warnings but always honour the requested position.
+        if (!wallSpaceManager.IsPositionValid(roomId, wallName, positionAlongWall, artworkWidth, wall.length))
         {
-            adjustedPosition = validPosition.Value;
-            if (Mathf.Abs(adjustedPosition - positionAlongWall) > 0.01f && debugMode)
-            {
-                Debug.Log($"[TopologyGenerator] Position {positionAlongWall:F2} adjusted to {adjustedPosition:F2} for {artworkWidth}m artwork");
-            }
-        }
-        else
-        {
-            // No gap large enough - skip this artwork to prevent overlapping
-            if (debugMode) Debug.LogWarning($"[TopologyGenerator] No valid position for {artworkWidth}m artwork on wall '{wallName}' in room '{roomId}'");
-            return null;
+            Debug.LogWarning($"[TopologyGenerator] Backend overlap: {artworkWidth:F2}m artwork '{assetId}' at {positionAlongWall:F2} on '{wallName}' in '{roomId}' conflicts with existing placement or wall edge");
         }
 
-        // Register this placement so future art won't overlap
+        // Register so subsequent audit checks see this piece
         if (!string.IsNullOrEmpty(assetId))
         {
-            wallSpaceManager.RegisterArtwork(roomId, wallName, adjustedPosition, artworkWidth, assetId);
+            wallSpaceManager.RegisterArtwork(roomId, wallName, positionAlongWall, artworkWidth, assetId);
         }
 
         // Walk along the wall from start to end
@@ -158,7 +146,7 @@ public abstract class TopologyGenerator : MonoBehaviour
         Vector3 endPoint = wall.endPoint;
         Vector3 direction = (endPoint - startPoint).normalized;
 
-        Vector3 position = startPoint + direction * adjustedPosition;
+        Vector3 position = startPoint + direction * positionAlongWall;
 
         // Push away from the wall surface so the frame sits flush
         position += wall.normal * wallOffset;
@@ -1332,21 +1320,34 @@ public abstract class TopologyGenerator : MonoBehaviour
             {
                 case GalleryStyle.Classical:
                     GenerateBaseboard(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY, 0.12f, 0.025f, $"Baseboard_{suffix}");
+                    GenerateChairRail(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + 1.0f, 0.04f, 0.018f, $"ChairRail_{suffix}");
+                    GenerateWainscotingPanels(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY, 1.0f);
                     GenerateCrownMolding(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + wallHeight, 0.1f, 0.045f, $"Crown_{suffix}");
+                    GenerateCeilingCornice(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + wallHeight, $"Cornice_{suffix}");
                     addedTrim = true;
                     break;
                 case GalleryStyle.Industrial:
-                    GenerateBaseboard(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY, 0.03f, 0.012f, $"Baseboard_{suffix}");
+                    GenerateKickPlate(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY, $"KickPlate_{suffix}");
+                    GenerateConduitRail(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + Mathf.Min(2.5f, wallHeight - 0.3f), $"Conduit_{suffix}");
                     GenerateCeilingBeam(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + wallHeight - 0.08f, 0.05f, $"Beam_{suffix}");
                     addedTrim = true;
                     break;
                 case GalleryStyle.Contemporary:
                 default:
                     GenerateBaseboard(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY, 0.045f, 0.012f, $"Baseboard_{suffix}");
-                    GenerateShadowGap(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + wallHeight - 0.02f, $"ShadowGap_{suffix}");
+                    GeneratePictureRail(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + Mathf.Min(2.2f, wallHeight - 0.3f), $"PictureRail_{suffix}");
+                    GenerateWallReveals(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY, wallHeight);
+                    GenerateCeilingShadowChannel(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + wallHeight, $"ShadowChannel_{suffix}");
                     addedTrim = true;
                     break;
             }
+        }
+
+        // Corner details (pilasters at wall junctions)
+        if (generatedRoom != null && galleryStyle != GalleryStyle.Industrial)
+        {
+            GenerateRoomCornerDetails(trimRoot.transform, generatedRoom);
+            addedTrim = true;
         }
 
         if (!addedTrim)
@@ -1394,6 +1395,334 @@ public abstract class TopologyGenerator : MonoBehaviour
     {
         Material beamMaterial = trimMaterial != null ? trimMaterial : wallMaterial;
         CreateTrimStrip(parent, start, end, inwardNormal, centerY, size, size, name, beamMaterial);
+    }
+
+    // Picture rail: thin horizontal strip at artwork hanging height (~2.2m)
+    protected void GeneratePictureRail(Transform parent, Vector3 start, Vector3 end, Vector3 inwardNormal, float centerY, string name = "PictureRail")
+    {
+        CreateTrimStrip(parent, start, end, inwardNormal, centerY, 0.02f, 0.018f, name);
+    }
+
+    // Ceiling shadow channel: deeper dark strip at ceiling-wall junction
+    protected void GenerateCeilingShadowChannel(Transform parent, Vector3 start, Vector3 end, Vector3 inwardNormal, float ceilingY, string name = "CeilingShadowChannel")
+    {
+        Material channelMat = ceilingMaterial != null ? ceilingMaterial : trimMaterial;
+        CreateTrimStrip(parent, start, end, inwardNormal, ceilingY - 0.015f, 0.03f, 0.02f, name, channelMat);
+    }
+
+    // Ceiling cornice: secondary molding below the crown
+    protected void GenerateCeilingCornice(Transform parent, Vector3 start, Vector3 end, Vector3 inwardNormal, float ceilingY, string name = "Cornice")
+    {
+        CreateTrimStrip(parent, start, end, inwardNormal, ceilingY - 0.16f, 0.04f, 0.02f, name);
+    }
+
+    // Metal kick plate: wider/shinier strip at floor level for industrial
+    protected void GenerateKickPlate(Transform parent, Vector3 start, Vector3 end, Vector3 inwardNormal, float floorY, string name = "KickPlate")
+    {
+        Material metalMat = CreateMaterial("KickPlate_Mat", Rgb(90, 90, 88), metallic: 0.25f, smoothness: 0.35f);
+        CreateTrimStrip(parent, start, end, inwardNormal, floorY + 0.04f, 0.08f, 0.015f, name, metalMat);
+    }
+
+    // Conduit/pipe rail: thin strip along wall at ~2.5m for industrial
+    protected void GenerateConduitRail(Transform parent, Vector3 start, Vector3 end, Vector3 inwardNormal, float centerY, string name = "ConduitRail")
+    {
+        Material conduitMat = CreateMaterial("Conduit_Mat", Rgb(68, 68, 66), metallic: 0.15f, smoothness: 0.25f);
+        CreateTrimStrip(parent, start, end, inwardNormal, centerY, 0.025f, 0.025f, name, conduitMat);
+    }
+
+    // Wall reveal lines: subtle vertical recessed strips breaking up flat walls into panels
+    protected void GenerateWallReveals(Transform parent, Vector3 start, Vector3 end, Vector3 inwardNormal, float floorY, float height, float spacing = 2.5f)
+    {
+        Vector3 direction = end - start;
+        float length = direction.magnitude;
+        if (length < spacing * 1.5f) return; // Wall too short for reveals
+
+        Vector3 dir = direction.normalized;
+        Material revealMat = ceilingMaterial != null ? ceilingMaterial : trimMaterial;
+        int revealCount = Mathf.FloorToInt(length / spacing);
+        float actualSpacing = length / (revealCount + 1);
+
+        for (int i = 1; i <= revealCount; i++)
+        {
+            Vector3 pos = start + dir * (actualSpacing * i);
+            pos += inwardNormal * 0.003f;
+            pos.y = floorY + height * 0.5f;
+
+            GameObject reveal = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            reveal.name = $"WallReveal_{i}";
+            reveal.transform.SetParent(parent);
+            reveal.transform.position = pos;
+            reveal.transform.rotation = Quaternion.LookRotation(inwardNormal, Vector3.up);
+            reveal.transform.localScale = new Vector3(0.008f, height * 0.85f, 0.006f);
+
+            Renderer rend = reveal.GetComponent<Renderer>();
+            rend.sharedMaterial = revealMat;
+
+            Collider col = reveal.GetComponent<Collider>();
+            if (col != null)
+            {
+                col.enabled = false;
+                if (Application.isPlaying) Destroy(col); else DestroyImmediate(col);
+            }
+        }
+    }
+
+    // Wainscoting panel outlines: raised rectangular frames below chair rail
+    protected void GenerateWainscotingPanels(Transform parent, Vector3 start, Vector3 end, Vector3 inwardNormal, float floorY, float chairRailHeight = 1.0f)
+    {
+        Vector3 direction = end - start;
+        float length = direction.magnitude;
+        if (length < 1.2f) return;
+
+        Vector3 dir = direction.normalized;
+        float panelWidth = Mathf.Clamp(length * 0.4f, 0.6f, 1.8f);
+        int panelCount = Mathf.Max(1, Mathf.FloorToInt(length / (panelWidth + 0.3f)));
+        float totalPanelsWidth = panelCount * panelWidth + (panelCount - 1) * 0.3f;
+        float startOffset = (length - totalPanelsWidth) / 2f;
+
+        float panelBottom = floorY + 0.18f; // Above baseboard
+        float panelTop = floorY + chairRailHeight - 0.06f;
+        float panelHeight = panelTop - panelBottom;
+        if (panelHeight < 0.2f) return;
+
+        for (int i = 0; i < panelCount; i++)
+        {
+            float centerAlong = startOffset + panelWidth / 2f + i * (panelWidth + 0.3f);
+            Vector3 panelCenter = start + dir * centerAlong + inwardNormal * 0.006f;
+            panelCenter.y = panelBottom + panelHeight / 2f;
+
+            // Panel frame: 4 thin strips forming a rectangle
+            float frameThick = 0.018f;
+            float frameDepth = 0.008f;
+
+            // Top strip
+            CreateTrimStrip(parent,
+                start + dir * (centerAlong - panelWidth / 2f),
+                start + dir * (centerAlong + panelWidth / 2f),
+                inwardNormal, panelTop - frameThick / 2f, frameThick, frameDepth, $"Wainscot_Top_{i}");
+
+            // Bottom strip
+            CreateTrimStrip(parent,
+                start + dir * (centerAlong - panelWidth / 2f),
+                start + dir * (centerAlong + panelWidth / 2f),
+                inwardNormal, panelBottom + frameThick / 2f, frameThick, frameDepth, $"Wainscot_Bottom_{i}");
+
+            // Left vertical strip
+            Vector3 leftPos = start + dir * (centerAlong - panelWidth / 2f) + inwardNormal * (frameDepth * 0.5f);
+            leftPos.y = panelBottom + panelHeight / 2f;
+            GameObject leftStrip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            leftStrip.name = $"Wainscot_Left_{i}";
+            leftStrip.transform.SetParent(parent);
+            leftStrip.transform.position = leftPos;
+            leftStrip.transform.rotation = Quaternion.LookRotation(inwardNormal, Vector3.up);
+            leftStrip.transform.localScale = new Vector3(frameThick, panelHeight, frameDepth);
+            leftStrip.GetComponent<Renderer>().sharedMaterial = trimMaterial ?? wallMaterial;
+            Collider lc = leftStrip.GetComponent<Collider>();
+            if (lc != null) { lc.enabled = false; if (Application.isPlaying) Destroy(lc); else DestroyImmediate(lc); }
+
+            // Right vertical strip
+            Vector3 rightPos = start + dir * (centerAlong + panelWidth / 2f) + inwardNormal * (frameDepth * 0.5f);
+            rightPos.y = panelBottom + panelHeight / 2f;
+            GameObject rightStrip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rightStrip.name = $"Wainscot_Right_{i}";
+            rightStrip.transform.SetParent(parent);
+            rightStrip.transform.position = rightPos;
+            rightStrip.transform.rotation = Quaternion.LookRotation(inwardNormal, Vector3.up);
+            rightStrip.transform.localScale = new Vector3(frameThick, panelHeight, frameDepth);
+            rightStrip.GetComponent<Renderer>().sharedMaterial = trimMaterial ?? wallMaterial;
+            Collider rc = rightStrip.GetComponent<Collider>();
+            if (rc != null) { rc.enabled = false; if (Application.isPlaying) Destroy(rc); else DestroyImmediate(rc); }
+        }
+    }
+
+    // Pilaster: vertical column-like element at wall junctions/corners
+    protected void GeneratePilaster(Transform parent, Vector3 position, Vector3 inwardNormal, float floorY, float height, float width = 0.06f, float depth = 0.03f)
+    {
+        Vector3 pos = position + inwardNormal * (depth * 0.5f);
+        pos.y = floorY + height / 2f;
+
+        GameObject pilaster = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        pilaster.name = "Pilaster";
+        pilaster.transform.SetParent(parent);
+        pilaster.transform.position = pos;
+        pilaster.transform.rotation = Quaternion.LookRotation(inwardNormal, Vector3.up);
+        pilaster.transform.localScale = new Vector3(width, height, depth);
+
+        Renderer rend = pilaster.GetComponent<Renderer>();
+        rend.sharedMaterial = trimMaterial ?? wallMaterial;
+
+        Collider col = pilaster.GetComponent<Collider>();
+        if (col != null)
+        {
+            col.enabled = false;
+            if (Application.isPlaying) Destroy(col); else DestroyImmediate(col);
+        }
+    }
+
+    // Ceiling beam grid: cross-beams perpendicular to wall-parallel beams
+    protected void GenerateCeilingBeamGrid(Transform parent, GeneratedRoom room, float beamSize = 0.06f)
+    {
+        if (room?.dimensions == null) return;
+
+        float width = room.dimensions.width;
+        float depth = GetRoomDepth(room.dimensions);
+        float height = room.dimensions.height;
+        if (width <= 0 || depth <= 0 || height <= 0) return;
+
+        float beamY = room.floorY + height - beamSize * 0.5f;
+        float spacing = 2.5f;
+        Material beamMat = trimMaterial ?? wallMaterial;
+
+        // Beams along X (spanning room width)
+        int zBeams = Mathf.Max(1, Mathf.FloorToInt(depth / spacing));
+        float zStep = depth / (zBeams + 1);
+        for (int i = 1; i <= zBeams; i++)
+        {
+            float z = room.center.z - depth / 2f + zStep * i;
+            Vector3 beamStart = new Vector3(room.center.x - width / 2f, 0f, z);
+            Vector3 beamEnd = new Vector3(room.center.x + width / 2f, 0f, z);
+            CreateTrimStrip(parent, beamStart, beamEnd, Vector3.down, beamY, beamSize, beamSize, $"CrossBeam_X_{i}", beamMat);
+        }
+
+        // Beams along Z (spanning room depth)
+        int xBeams = Mathf.Max(1, Mathf.FloorToInt(width / spacing));
+        float xStep = width / (xBeams + 1);
+        for (int i = 1; i <= xBeams; i++)
+        {
+            float x = room.center.x - width / 2f + xStep * i;
+            Vector3 beamStart = new Vector3(x, 0f, room.center.z - depth / 2f);
+            Vector3 beamEnd = new Vector3(x, 0f, room.center.z + depth / 2f);
+            CreateTrimStrip(parent, beamStart, beamEnd, Vector3.down, beamY, beamSize, beamSize, $"CrossBeam_Z_{i}", beamMat);
+        }
+    }
+
+    // Doorway frame: thick trim around doorway openings
+    protected void GenerateDoorwayFrame(Transform parent, Vector3 doorwayCenter, float doorwayWidth, float doorwayHeight, Vector3 wallNormal, float floorY)
+    {
+        Vector3 wallDir = Vector3.Cross(Vector3.up, wallNormal).normalized;
+        float halfDoorW = doorwayWidth / 2f;
+        float frameWidth = 0.08f;
+        float frameDepth = 0.03f;
+
+        // Left jamb
+        Vector3 leftJambPos = doorwayCenter - wallDir * (halfDoorW + frameWidth / 2f) + wallNormal * (frameDepth * 0.5f);
+        leftJambPos.y = floorY + doorwayHeight / 2f;
+        GameObject leftJamb = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        leftJamb.name = "DoorFrame_LeftJamb";
+        leftJamb.transform.SetParent(parent);
+        leftJamb.transform.position = leftJambPos;
+        leftJamb.transform.rotation = Quaternion.LookRotation(wallNormal, Vector3.up);
+        leftJamb.transform.localScale = new Vector3(frameWidth, doorwayHeight, frameDepth);
+        leftJamb.GetComponent<Renderer>().sharedMaterial = trimMaterial ?? wallMaterial;
+        Collider lc = leftJamb.GetComponent<Collider>();
+        if (lc != null) { lc.enabled = false; if (Application.isPlaying) Destroy(lc); else DestroyImmediate(lc); }
+
+        // Right jamb
+        Vector3 rightJambPos = doorwayCenter + wallDir * (halfDoorW + frameWidth / 2f) + wallNormal * (frameDepth * 0.5f);
+        rightJambPos.y = floorY + doorwayHeight / 2f;
+        GameObject rightJamb = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        rightJamb.name = "DoorFrame_RightJamb";
+        rightJamb.transform.SetParent(parent);
+        rightJamb.transform.position = rightJambPos;
+        rightJamb.transform.rotation = Quaternion.LookRotation(wallNormal, Vector3.up);
+        rightJamb.transform.localScale = new Vector3(frameWidth, doorwayHeight, frameDepth);
+        rightJamb.GetComponent<Renderer>().sharedMaterial = trimMaterial ?? wallMaterial;
+        Collider rc2 = rightJamb.GetComponent<Collider>();
+        if (rc2 != null) { rc2.enabled = false; if (Application.isPlaying) Destroy(rc2); else DestroyImmediate(rc2); }
+
+        // Header
+        Vector3 headerStart = doorwayCenter - wallDir * (halfDoorW + frameWidth);
+        Vector3 headerEnd = doorwayCenter + wallDir * (halfDoorW + frameWidth);
+        CreateTrimStrip(parent, headerStart, headerEnd, wallNormal, floorY + doorwayHeight + frameWidth / 2f, frameWidth, frameDepth, "DoorFrame_Header");
+    }
+
+    // Corner details: place pilasters at wall junctions for a finished look
+    protected void GenerateRoomCornerDetails(Transform trimParent, GeneratedRoom room)
+    {
+        if (room?.walls == null || room.walls.Count < 2) return;
+
+        float floorY = room.floorY;
+        float height = room.dimensions?.height ?? 3f;
+        float pilasterWidth = galleryStyle == GalleryStyle.Classical ? 0.08f : 0.05f;
+        float pilasterDepth = galleryStyle == GalleryStyle.Classical ? 0.035f : 0.02f;
+
+        // Find pairs of walls that share a corner (endpoint of one ~ startpoint of another)
+        List<WallInfo> wallList = new List<WallInfo>(room.walls.Values);
+        HashSet<string> placedCorners = new HashSet<string>();
+
+        for (int i = 0; i < wallList.Count; i++)
+        {
+            WallInfo wallA = wallList[i];
+            if (wallA == null || !ShouldGenerateTrimOnWall(wallA.name)) continue;
+
+            for (int j = i + 1; j < wallList.Count; j++)
+            {
+                WallInfo wallB = wallList[j];
+                if (wallB == null || !ShouldGenerateTrimOnWall(wallB.name)) continue;
+
+                // Check all 4 endpoint pairs for proximity
+                Vector3[] endpointsA = { wallA.startPoint, wallA.endPoint };
+                Vector3[] endpointsB = { wallB.startPoint, wallB.endPoint };
+
+                foreach (Vector3 ptA in endpointsA)
+                {
+                    foreach (Vector3 ptB in endpointsB)
+                    {
+                        float dist = Vector3.Distance(new Vector3(ptA.x, 0, ptA.z), new Vector3(ptB.x, 0, ptB.z));
+                        if (dist < wallThickness * 2f)
+                        {
+                            Vector3 cornerPos = (ptA + ptB) * 0.5f;
+                            cornerPos.y = 0f;
+                            string cornerKey = $"{Mathf.RoundToInt(cornerPos.x * 10)}_{Mathf.RoundToInt(cornerPos.z * 10)}";
+
+                            if (!placedCorners.Contains(cornerKey))
+                            {
+                                placedCorners.Add(cornerKey);
+                                // Average the normals to bisect the corner
+                                Vector3 avgNormal = (wallA.normal + wallB.normal).normalized;
+                                if (avgNormal.sqrMagnitude < 0.01f)
+                                    avgNormal = wallA.normal;
+
+                                GeneratePilaster(trimParent, cornerPos, avgNormal, floorY, height, pilasterWidth, pilasterDepth);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Partition end caps: small vertical strips at exposed ends of partitions
+    protected void GeneratePartitionEndCaps(Transform parent, Vector3 start, Vector3 end, Vector3 normal, float floorY, float height, float thickness)
+    {
+        float capDepth = thickness * 1.2f;
+        float capWidth = 0.02f;
+
+        // Start end cap
+        Vector3 startPos = start;
+        startPos.y = floorY + height / 2f;
+        GameObject startCap = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        startCap.name = "PartitionEndCap_Start";
+        startCap.transform.SetParent(parent);
+        startCap.transform.position = startPos;
+        startCap.transform.rotation = Quaternion.LookRotation(normal, Vector3.up);
+        startCap.transform.localScale = new Vector3(capWidth, height, capDepth);
+        startCap.GetComponent<Renderer>().sharedMaterial = trimMaterial ?? wallMaterial;
+        Collider sc = startCap.GetComponent<Collider>();
+        if (sc != null) { sc.enabled = false; if (Application.isPlaying) Destroy(sc); else DestroyImmediate(sc); }
+
+        // End end cap
+        Vector3 endPos = end;
+        endPos.y = floorY + height / 2f;
+        GameObject endCap = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        endCap.name = "PartitionEndCap_End";
+        endCap.transform.SetParent(parent);
+        endCap.transform.position = endPos;
+        endCap.transform.rotation = Quaternion.LookRotation(normal, Vector3.up);
+        endCap.transform.localScale = new Vector3(capWidth, height, capDepth);
+        endCap.GetComponent<Renderer>().sharedMaterial = trimMaterial ?? wallMaterial;
+        Collider ec = endCap.GetComponent<Collider>();
+        if (ec != null) { ec.enabled = false; if (Application.isPlaying) Destroy(ec); else DestroyImmediate(ec); }
     }
 
     private GeneratedRoom FindGeneratedRoomByTransform(Transform roomTransform)

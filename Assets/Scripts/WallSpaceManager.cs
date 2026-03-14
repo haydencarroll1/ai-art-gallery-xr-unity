@@ -167,8 +167,9 @@ public class WallSpaceManager
             if (gapWidth < minArtWidth) continue;
             
             // Calculate valid range within this gap
-            float validStart = gap.start + halfWidth + WallEdgeMargin;
-            float validEnd = gap.end - halfWidth - WallEdgeMargin;
+            // Note: gap bounds already account for WallEdgeMargin (from FindAvailableGaps)
+            float validStart = gap.start + halfWidth;
+            float validEnd = gap.end - halfWidth;
             
             if (validEnd < validStart) continue;
             

@@ -130,25 +130,15 @@ public class ArtworkPlacer : MonoBehaviour
                 }
             }
             
-            // Sort by role priority unless baseline mode is on
+            // Place pieces in manifest order. The backend is authoritative for
+            // positions — Unity only resolves semantic wall tags ("hero_wall",
+            // "auto") into concrete wall names. No cluster rearrangement or
+            // priority reordering; the backend already handled overlap resolution.
             var placements = new List<PlacementInstruction>(manifest.placement_plan);
             if (!useSequentialBaseline)
             {
-                // Resolve backend keywords "auto" and "hero_wall" into concrete
-                // wall names *before* hero/cluster arrangement runs, so that
-                // TryResolveWallTarget and GetWallPlacement see real wall IDs.
                 ResolveSpecialWalls(manifest, placements);
-
                 AssignHeroToFocalWall(manifest, placements);
-                ArrangeClusterPlacements(manifest, placements);
-
-                placements.Sort((a, b) => {
-                    var assetA = manifest.GetAssetById(a.asset_id);
-                    var assetB = manifest.GetAssetById(b.asset_id);
-                    int roleCompare = GetRoleOrder(assetA?.GetRole()) - GetRoleOrder(assetB?.GetRole());
-                    if (roleCompare != 0) return roleCompare;
-                    return (assetB?.GetVisualWeight() ?? 0f).CompareTo(assetA?.GetVisualWeight() ?? 0f);
-                });
             }
 
             foreach (var placement in placements)

@@ -183,6 +183,23 @@ public class OpenHallGenerator : TopologyGenerator
 
         generatedRooms[roomId] = room;
         CreateArchitecturalTrim(hallRoot, new List<WallInfo>(room.walls.Values));
+
+        // Add ceiling beam grid (large open space benefits from overhead structure)
+        GenerateCeilingBeamGrid(hallRoot.transform, room, 0.07f);
+
+        // Add end caps to partition walls so they don't look like floating planes
+        if (dims.partitions != null)
+        {
+            foreach (var p in dims.partitions)
+            {
+                if (p == null || string.IsNullOrEmpty(p.id)) continue;
+                string frontKey = $"{p.id}_front";
+                if (room.walls.TryGetValue(frontKey, out WallInfo frontWall))
+                {
+                    GeneratePartitionEndCaps(hallRoot.transform, frontWall.startPoint, frontWall.endPoint, frontWall.normal, 0f, p.height, partitionThickness);
+                }
+            }
+        }
     }
 
     private void CreateOuterWall(Transform parent, string name, float wallWidth, float height, float zPos, string wallName, bool hasEntry, float entryPos, float entryWidth)
@@ -273,8 +290,12 @@ public class OpenHallGenerator : TopologyGenerator
         Vector3 center = HallToWorld(p.x, p.z, hallWidth, hallDepth);
         float halfLen = p.length / 2f;
         Quaternion rot = Quaternion.Euler(0f, p.rotation, 0f);
-        Vector3 lengthDir = rot * Vector3.forward; // along partition length
-        Vector3 normal = rot * Vector3.right;      // front face normal
+
+        // Match the scale swap in CreatePartition: at 90/270 degrees the
+        // local X and Z axes are exchanged, so length runs along X not Z.
+        bool isSwapped = Mathf.Abs(Mathf.RoundToInt(p.rotation) % 180) == 90;
+        Vector3 lengthDir = rot * (isSwapped ? Vector3.right : Vector3.forward);
+        Vector3 normal = rot * (isSwapped ? Vector3.forward : Vector3.right);
 
         Vector3 start = center - lengthDir * halfLen;
         Vector3 end = center + lengthDir * halfLen;

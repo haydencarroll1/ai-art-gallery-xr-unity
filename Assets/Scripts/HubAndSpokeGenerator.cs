@@ -69,10 +69,14 @@ public class HubAndSpokeGenerator : TopologyGenerator
             return;
         }
 
+        // Auto-inject hub doorways for every spoke so the hub wall always
+        // has an opening where a spoke connects, even if the manifest omits it.
+        EnsureHubDoorwaysForSpokes(constraints, layoutPlan, hubConstraint, hubDims);
+
         // Generate hub at origin
         GenerateRoom(hubConstraint.id, hubDims, Vector3.zero, isHub: true, spokeDoorWall: null);
 
-        // Generate spokes
+        // Generate spokes (skip spoke connecting wall - hub already has it)
         foreach (var room in constraints.rooms)
         {
             if (room.id == hubConstraint.id) continue;
@@ -84,6 +88,9 @@ public class HubAndSpokeGenerator : TopologyGenerator
             GenerateRoom(room.id, dims, pos, isHub: false, spokeDoorWall: doorWall);
         }
 
+        // Add doorway frames around hub-spoke connections
+        GenerateHubDoorwayFrames(hubConstraint, hubDims, constraints, layoutPlan);
+
         if (generateLights)
         {
             EnsureDirectionalLight();
@@ -93,6 +100,90 @@ public class HubAndSpokeGenerator : TopologyGenerator
         ApplyStyleEnhancements(includeSpotlights: false);
 
         if (debugMode) Debug.Log("[HubAndSpokeGenerator] Generation complete!");
+    }
+
+    private void GenerateHubDoorwayFrames(RoomConstraint hubConstraint, RoomDimensions hubDims, LockedConstraints constraints, LayoutPlanWrapper layoutPlan)
+    {
+        if (generatedRoot == null) return;
+
+        GameObject frameRoot = new GameObject("DoorwayFrames");
+        frameRoot.transform.SetParent(generatedRoot.transform);
+        frameRoot.transform.localPosition = Vector3.zero;
+
+        float halfW = hubDims.width / 2f;
+        float halfD = (hubDims.depth > 0 ? hubDims.depth : hubDims.length) / 2f;
+
+        foreach (var room in constraints.rooms)
+        {
+            if (room.id == hubConstraint.id) continue;
+            RoomDimensions dims = layoutPlan.GetRoom(room.id);
+            if (dims == null) continue;
+
+            string hubWall = GetHubDoorWall(dims.direction_from_hub);
+            Vector3 doorCenter;
+            Vector3 wallNormal;
+
+            switch (hubWall)
+            {
+                case WallNames.Front:
+                    doorCenter = new Vector3(0f, 0f, halfD);
+                    wallNormal = Vector3.back;
+                    break;
+                case WallNames.Back:
+                    doorCenter = new Vector3(0f, 0f, -halfD);
+                    wallNormal = Vector3.forward;
+                    break;
+                case WallNames.Right:
+                    doorCenter = new Vector3(halfW, 0f, 0f);
+                    wallNormal = Vector3.left;
+                    break;
+                case WallNames.Left:
+                    doorCenter = new Vector3(-halfW, 0f, 0f);
+                    wallNormal = Vector3.right;
+                    break;
+                default:
+                    continue;
+            }
+
+            float safeDoorWidth = Mathf.Min(doorwayWidth, hubDims.width - 0.4f);
+            float safeDoorHeight = Mathf.Min(doorwayHeight, hubDims.height - 0.2f);
+            GenerateDoorwayFrame(frameRoot.transform, doorCenter, safeDoorWidth, safeDoorHeight, wallNormal, 0f);
+        }
+    }
+
+    // Bug fix: ensure hub always has doorways facing each spoke direction.
+    // Without this, if the manifest omits hub doorways, spokes are unreachable.
+    private void EnsureHubDoorwaysForSpokes(LockedConstraints constraints, LayoutPlanWrapper layoutPlan, RoomConstraint hubConstraint, RoomDimensions hubDims)
+    {
+        if (hubDims.doorways == null)
+            hubDims.doorways = new List<Doorway>();
+
+        foreach (var room in constraints.rooms)
+        {
+            if (room.id == hubConstraint.id) continue;
+            RoomDimensions dims = layoutPlan.GetRoom(room.id);
+            if (dims == null) continue;
+
+            string hubWall = GetHubDoorWall(dims.direction_from_hub);
+            if (!HasDoorway(hubDims.doorways, hubWall))
+            {
+                hubDims.doorways.Add(new Doorway { wall = hubWall, connects_to = room.id });
+                if (debugMode) Debug.Log($"[HubAndSpokeGenerator] Auto-injected hub doorway on '{hubWall}' for spoke '{room.id}'");
+            }
+        }
+    }
+
+    // Returns which hub wall faces a spoke in the given direction.
+    private string GetHubDoorWall(string direction)
+    {
+        switch (direction)
+        {
+            case "north": return WallNames.Front;
+            case "south": return WallNames.Back;
+            case "east":  return WallNames.Right;
+            case "west":  return WallNames.Left;
+            default:      return WallNames.Front;
+        }
     }
 
     private Vector3 GetSpokePosition(string direction, RoomDimensions hub, RoomDimensions spoke)
@@ -151,11 +242,22 @@ public class HubAndSpokeGenerator : TopologyGenerator
         bool doorLeft = isHub ? HasDoorway(dims.doorways, WallNames.Left) : spokeDoorWall == WallNames.Left;
         bool doorRight = isHub ? HasDoorway(dims.doorways, WallNames.Right) : spokeDoorWall == WallNames.Right;
 
+        // For spokes, skip the connecting wall entirely - the hub's doorway wall
+        // already covers that seam. Generating both causes Z-fighting.
+        bool skipBack = !isHub && spokeDoorWall == WallNames.Back;
+        bool skipFront = !isHub && spokeDoorWall == WallNames.Front;
+        bool skipLeft = !isHub && spokeDoorWall == WallNames.Left;
+        bool skipRight = !isHub && spokeDoorWall == WallNames.Right;
+
         // Walls
-        CreateWallWithCenteredDoorway(roomRoot.transform, "Wall_Back", width, height, -halfD, doorBack);
-        CreateWallWithCenteredDoorway(roomRoot.transform, "Wall_Front", width, height, halfD, doorFront);
-        CreateSideWallWithCenteredDoorway(roomRoot.transform, "Wall_Left", depth, height, -halfW, doorLeft);
-        CreateSideWallWithCenteredDoorway(roomRoot.transform, "Wall_Right", depth, height, halfW, doorRight);
+        if (!skipBack)
+            CreateWallWithCenteredDoorway(roomRoot.transform, "Wall_Back", width, height, -halfD, doorBack);
+        if (!skipFront)
+            CreateWallWithCenteredDoorway(roomRoot.transform, "Wall_Front", width, height, halfD, doorFront);
+        if (!skipLeft)
+            CreateSideWallWithCenteredDoorway(roomRoot.transform, "Wall_Left", depth, height, -halfW, doorLeft);
+        if (!skipRight)
+            CreateSideWallWithCenteredDoorway(roomRoot.transform, "Wall_Right", depth, height, halfW, doorRight);
 
         // Register for placement (avoid doorway walls on hub to keep placement simple)
         GeneratedRoom room = new GeneratedRoom

@@ -53,29 +53,55 @@ public class BranchingRoomsGenerator : TopologyGenerator
         // All rooms in constraints.rooms[] are actual rooms (per schema)
         int count = Mathf.Min(5, constraints.rooms.Count); // Performance limit
 
-        float currentZ = 0f;
+        // Pre-collect room dimensions so we can look ahead for transition walls
+        List<(RoomConstraint constraint, RoomDimensions dims, float depth)> roomData
+            = new List<(RoomConstraint, RoomDimensions, float)>();
         for (int i = 0; i < count; i++)
         {
-            RoomConstraint roomConstraint = constraints.rooms[i];
-            RoomDimensions dims = layoutPlan.GetRoom(roomConstraint.id);
+            RoomConstraint rc = constraints.rooms[i];
+            RoomDimensions dims = layoutPlan.GetRoom(rc.id);
             if (dims == null)
             {
-                Debug.LogError($"[BranchingRoomsGenerator] Missing layout for room '{roomConstraint.id}'");
+                Debug.LogError($"[BranchingRoomsGenerator] Missing layout for room '{rc.id}'");
                 continue;
             }
-
             float depth = dims.length > 0 ? dims.length : dims.depth;
             if (depth <= 0f)
             {
-                Debug.LogWarning($"[BranchingRoomsGenerator] Room '{roomConstraint.id}' has no depth/length. Using 5m default.");
+                Debug.LogWarning($"[BranchingRoomsGenerator] Room '{rc.id}' has no depth/length. Using 5m default.");
                 depth = 5f;
             }
+            roomData.Add((rc, dims, depth));
+        }
+
+        float currentZ = 0f;
+        for (int i = 0; i < roomData.Count; i++)
+        {
+            var (roomConstraint, dims, depth) = roomData[i];
+            float nextWidth = (i < roomData.Count - 1) ? roomData[i + 1].dims.width : dims.width;
 
             // Check doorways from layout_plan for connectivity
             bool hasBackConnection = i > 0 || HasDoorwayOnWall(dims.doorways, WallNames.Back);
-            bool hasFrontConnection = i < count - 1 || HasDoorwayOnWall(dims.doorways, WallNames.Front);
-            
-            GenerateRoom(roomConstraint.id, dims, currentZ, hasBackConnection, hasFrontConnection);
+            bool hasFrontConnection = i < roomData.Count - 1 || HasDoorwayOnWall(dims.doorways, WallNames.Front);
+
+            // Transition walls to bridge width differences between adjacent rooms
+            if (i > 0 && Mathf.Abs(roomData[i - 1].dims.width - dims.width) > 0.01f)
+            {
+                GenerateTransitionWalls(currentZ, roomData[i - 1].dims.width, dims.width,
+                    Mathf.Max(roomData[i - 1].dims.height, dims.height));
+            }
+
+            GenerateRoom(roomConstraint.id, dims, currentZ, hasBackConnection, hasFrontConnection, nextWidth);
+
+            // Add doorway frame at front connection between rooms
+            if (hasFrontConnection && i < roomData.Count - 1)
+            {
+                float doorZ = currentZ + depth;
+                float safeDoorWidth = Mathf.Min(doorwayWidth, dims.width - 0.4f);
+                float safeDoorHeight = Mathf.Min(doorwayHeight, dims.height - 0.2f);
+                GenerateDoorwayFrame(generatedRoot.transform, new Vector3(0f, 0f, doorZ), safeDoorWidth, safeDoorHeight, Vector3.back, 0f);
+            }
+
             currentZ += depth; // Rooms meet directly, no gaps
         }
 
@@ -100,7 +126,7 @@ public class BranchingRoomsGenerator : TopologyGenerator
         return false;
     }
 
-    private void GenerateRoom(string roomId, RoomDimensions dims, float startZ, bool hasBackConnection, bool hasFrontConnection)
+    private void GenerateRoom(string roomId, RoomDimensions dims, float startZ, bool hasBackConnection, bool hasFrontConnection, float nextWidth)
     {
         float width = dims.width;
         float depth = dims.length > 0 ? dims.length : dims.depth;
@@ -136,7 +162,9 @@ public class BranchingRoomsGenerator : TopologyGenerator
         {
             CreateWallWithDoorwaySegments(roomRoot.transform, "Wall_Back", width, height, startZ, WallNames.Back, false);
         }
-        CreateWallWithDoorwaySegments(roomRoot.transform, "Wall_Front", width, height, startZ + depth, WallNames.Front, hasFrontConnection);
+        // Bug 4 fix: use wider of current/next room width so doorway wall spans both
+        float frontWallWidth = hasFrontConnection ? Mathf.Max(width, nextWidth) : width;
+        CreateWallWithDoorwaySegments(roomRoot.transform, "Wall_Front", frontWallWidth, height, startZ + depth, WallNames.Front, hasFrontConnection);
         CreateSideWallSolid(roomRoot.transform, "Wall_Left", depth, height, -halfW, startZ + halfD);
         CreateSideWallSolid(roomRoot.transform, "Wall_Right", depth, height, halfW, startZ + halfD);
 
@@ -255,6 +283,51 @@ public class BranchingRoomsGenerator : TopologyGenerator
         wall.transform.position = position;
         wall.transform.localScale = scale;
         wall.GetComponent<Renderer>().sharedMaterial = wallMaterial;
+    }
+
+    /// <summary>
+    /// Generate transition walls to fill gaps when adjacent rooms have different widths.
+    /// Creates small wall segments on left and right to bridge the width difference.
+    /// </summary>
+    private void GenerateTransitionWalls(float zPosition, float prevWidth, float nextWidth, float height)
+    {
+        float prevHalfWidth = prevWidth / 2f;
+        float nextHalfWidth = nextWidth / 2f;
+        float widthDiff = Mathf.Abs(nextWidth - prevWidth) / 2f;
+
+        if (widthDiff < 0.01f) return;
+
+        GameObject transitionObj = new GameObject($"Transition_Z{zPosition}");
+        transitionObj.transform.SetParent(generatedRoot.transform);
+        transitionObj.transform.localPosition = Vector3.zero;
+
+        float narrowHalfWidth = Mathf.Min(prevHalfWidth, nextHalfWidth);
+
+        // Left transition wall
+        GameObject leftTransition = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        leftTransition.name = "TransitionWall_Left";
+        leftTransition.transform.SetParent(transitionObj.transform);
+        leftTransition.transform.localPosition = new Vector3(
+            -(narrowHalfWidth + widthDiff / 2f),
+            height / 2f,
+            zPosition
+        );
+        leftTransition.transform.localScale = new Vector3(widthDiff, height, wallThickness);
+        leftTransition.GetComponent<Renderer>().sharedMaterial = wallMaterial;
+
+        // Right transition wall
+        GameObject rightTransition = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        rightTransition.name = "TransitionWall_Right";
+        rightTransition.transform.SetParent(transitionObj.transform);
+        rightTransition.transform.localPosition = new Vector3(
+            narrowHalfWidth + widthDiff / 2f,
+            height / 2f,
+            zPosition
+        );
+        rightTransition.transform.localScale = new Vector3(widthDiff, height, wallThickness);
+        rightTransition.GetComponent<Renderer>().sharedMaterial = wallMaterial;
+
+        if (debugMode) Debug.Log($"[BranchingRoomsGenerator] Transition at z={zPosition}: {prevWidth}m -> {nextWidth}m");
     }
 
     private void GenerateLighting()

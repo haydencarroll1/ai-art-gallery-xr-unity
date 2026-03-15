@@ -689,7 +689,7 @@ public abstract class TopologyGenerator : MonoBehaviour
         wallMaterial = CreateMaterial("Wall_Contemporary", wallColor, metallic: 0f, smoothness: 0.08f, baseMap: wallTexture, tiling: new Vector2(4f, 4f));
         floorMaterial = CreateMaterial("Floor_Contemporary", floorColor, metallic: 0f, smoothness: 0.18f, baseMap: floorTexture, tiling: new Vector2(5f, 5f));
         ceilingMaterial = CreateMaterial("Ceiling_Contemporary", ceilingColor, metallic: 0f, smoothness: 0.03f, baseMap: ceilingTexture, tiling: new Vector2(3f, 3f));
-        trimMaterial = CreateMaterial("Trim_Contemporary", Rgb(235, 235, 232), metallic: 0f, smoothness: 0.14f);
+        trimMaterial = CreateMaterial("Trim_Contemporary", Rgb(255, 255, 255), metallic: 0f, smoothness: 0.28f);
     }
 
     private void InitializeClassicalMaterials()
@@ -1334,7 +1334,7 @@ public abstract class TopologyGenerator : MonoBehaviour
                     break;
                 case GalleryStyle.Contemporary:
                 default:
-                    GenerateBaseboard(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY, 0.045f, 0.012f, $"Baseboard_{suffix}");
+                    GenerateBaseboard(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY, 0.1f, 0.022f, $"Baseboard_{suffix}");
                     GeneratePictureRail(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + Mathf.Min(2.2f, wallHeight - 0.3f), $"PictureRail_{suffix}");
                     GenerateWallReveals(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY, wallHeight);
                     GenerateCeilingShadowChannel(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + wallHeight, $"ShadowChannel_{suffix}");
@@ -1596,13 +1596,16 @@ public abstract class TopologyGenerator : MonoBehaviour
         }
     }
 
-    // Doorway frame: thick trim around doorway openings
+    // Doorway frame: architrave trim around doorway openings with shadow-line reveal
     protected void GenerateDoorwayFrame(Transform parent, Vector3 doorwayCenter, float doorwayWidth, float doorwayHeight, Vector3 wallNormal, float floorY)
     {
         Vector3 wallDir = Vector3.Cross(Vector3.up, wallNormal).normalized;
         float halfDoorW = doorwayWidth / 2f;
-        float frameWidth = 0.08f;
-        float frameDepth = 0.03f;
+        float frameWidth = 0.14f;   // wider architrave — reads clearly at room scale
+        float frameDepth = 0.055f;  // proud of wall surface for shadow definition
+
+        Material frameMat = trimMaterial ?? wallMaterial;
+        Material shadowMat = ceilingMaterial ?? trimMaterial ?? wallMaterial; // dark for shadow lines
 
         // Left jamb
         Vector3 leftJambPos = doorwayCenter - wallDir * (halfDoorW + frameWidth / 2f) + wallNormal * (frameDepth * 0.5f);
@@ -1613,7 +1616,7 @@ public abstract class TopologyGenerator : MonoBehaviour
         leftJamb.transform.position = leftJambPos;
         leftJamb.transform.rotation = Quaternion.LookRotation(wallNormal, Vector3.up);
         leftJamb.transform.localScale = new Vector3(frameWidth, doorwayHeight, frameDepth);
-        leftJamb.GetComponent<Renderer>().sharedMaterial = trimMaterial ?? wallMaterial;
+        leftJamb.GetComponent<Renderer>().sharedMaterial = frameMat;
         Collider lc = leftJamb.GetComponent<Collider>();
         if (lc != null) { lc.enabled = false; if (Application.isPlaying) Destroy(lc); else DestroyImmediate(lc); }
 
@@ -1626,7 +1629,7 @@ public abstract class TopologyGenerator : MonoBehaviour
         rightJamb.transform.position = rightJambPos;
         rightJamb.transform.rotation = Quaternion.LookRotation(wallNormal, Vector3.up);
         rightJamb.transform.localScale = new Vector3(frameWidth, doorwayHeight, frameDepth);
-        rightJamb.GetComponent<Renderer>().sharedMaterial = trimMaterial ?? wallMaterial;
+        rightJamb.GetComponent<Renderer>().sharedMaterial = frameMat;
         Collider rc2 = rightJamb.GetComponent<Collider>();
         if (rc2 != null) { rc2.enabled = false; if (Application.isPlaying) Destroy(rc2); else DestroyImmediate(rc2); }
 
@@ -1634,6 +1637,44 @@ public abstract class TopologyGenerator : MonoBehaviour
         Vector3 headerStart = doorwayCenter - wallDir * (halfDoorW + frameWidth);
         Vector3 headerEnd = doorwayCenter + wallDir * (halfDoorW + frameWidth);
         CreateTrimStrip(parent, headerStart, headerEnd, wallNormal, floorY + doorwayHeight + frameWidth / 2f, frameWidth, frameDepth, "DoorFrame_Header");
+
+        // Shadow-line reveals: thin dark strips at the inner edge of each jamb/header.
+        // These sit flush with the wall face (no outward offset) and create a crisp recessed
+        // shadow line between the frame and the door opening — a contemporary architectural detail.
+        float shadowW = 0.018f;
+        float shadowD = frameDepth + 0.002f; // very slightly proud so it's not z-fighting
+
+        // Left shadow line (inner edge of left jamb, vertical)
+        Vector3 leftShadowPos = doorwayCenter - wallDir * (halfDoorW - shadowW / 2f) + wallNormal * (shadowD * 0.5f);
+        leftShadowPos.y = floorY + doorwayHeight / 2f;
+        GameObject leftShadow = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        leftShadow.name = "DoorFrame_LeftShadow";
+        leftShadow.transform.SetParent(parent);
+        leftShadow.transform.position = leftShadowPos;
+        leftShadow.transform.rotation = Quaternion.LookRotation(wallNormal, Vector3.up);
+        leftShadow.transform.localScale = new Vector3(shadowW, doorwayHeight, shadowD);
+        leftShadow.GetComponent<Renderer>().sharedMaterial = shadowMat;
+        Collider ls = leftShadow.GetComponent<Collider>();
+        if (ls != null) { ls.enabled = false; if (Application.isPlaying) Destroy(ls); else DestroyImmediate(ls); }
+
+        // Right shadow line
+        Vector3 rightShadowPos = doorwayCenter + wallDir * (halfDoorW - shadowW / 2f) + wallNormal * (shadowD * 0.5f);
+        rightShadowPos.y = floorY + doorwayHeight / 2f;
+        GameObject rightShadow = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        rightShadow.name = "DoorFrame_RightShadow";
+        rightShadow.transform.SetParent(parent);
+        rightShadow.transform.position = rightShadowPos;
+        rightShadow.transform.rotation = Quaternion.LookRotation(wallNormal, Vector3.up);
+        rightShadow.transform.localScale = new Vector3(shadowW, doorwayHeight, shadowD);
+        rightShadow.GetComponent<Renderer>().sharedMaterial = shadowMat;
+        Collider rs2 = rightShadow.GetComponent<Collider>();
+        if (rs2 != null) { rs2.enabled = false; if (Application.isPlaying) Destroy(rs2); else DestroyImmediate(rs2); }
+
+        // Top shadow line (horizontal, at top of opening)
+        Vector3 topShadowStart = doorwayCenter - wallDir * halfDoorW;
+        Vector3 topShadowEnd   = doorwayCenter + wallDir * halfDoorW;
+        CreateTrimStrip(parent, topShadowStart, topShadowEnd, wallNormal,
+            floorY + doorwayHeight - shadowW / 2f, shadowW, shadowD, "DoorFrame_TopShadow", shadowMat);
     }
 
     // Corner details: place pilasters at wall junctions for a finished look

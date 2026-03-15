@@ -124,8 +124,33 @@ public abstract class TopologyGenerator : MonoBehaviour
 
         if (!room.walls.TryGetValue(wallName, out var wall))
         {
-            Debug.LogError($"[TopologyGenerator] Wall '{wallName}' not found in room '{roomId}'");
-            return null;
+            // The requested wall is a doorway wall and was not registered for placement.
+            // Fall back to the wall in the same room with the most available space.
+            WallInfo fallback = null;
+            float fallbackPos = 0f;
+            foreach (var candidate in room.walls.Values)
+            {
+                if (candidate == null || candidate.length < artworkWidth + 0.6f) continue;
+                float midPoint = candidate.length / 2f;
+                float? validPos = wallSpaceManager.FindValidPosition(roomId, candidate.name, midPoint, artworkWidth, candidate.length);
+                if (validPos.HasValue)
+                {
+                    fallback = candidate;
+                    fallbackPos = validPos.Value;
+                    break;
+                }
+            }
+
+            if (fallback == null)
+            {
+                Debug.LogWarning($"[TopologyGenerator] Wall '{wallName}' not found in room '{roomId}' (doorway wall) and no fallback wall has space — skipping '{assetId}'");
+                return null;
+            }
+
+            Debug.LogWarning($"[TopologyGenerator] Wall '{wallName}' not found in room '{roomId}' (doorway wall) — redirecting '{assetId}' to '{fallback.name}'");
+            wallName = fallback.name;
+            wall = fallback;
+            positionAlongWall = fallbackPos;
         }
 
         // Audit-only: the backend is authoritative for positions. Log overlap

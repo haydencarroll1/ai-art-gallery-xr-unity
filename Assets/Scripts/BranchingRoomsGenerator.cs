@@ -227,7 +227,13 @@ public class BranchingRoomsGenerator : TopologyGenerator
         };
 
         generatedRooms[roomId] = room;
-        CreateArchitecturalTrim(roomRoot, new List<WallInfo>(room.walls.Values));
+
+        // Offset trim walls to inner face (WallInfo startPoints are at wall centers; inner face = center + normal * t).
+        float trimT = wallThickness / 2f;
+        var trimWalls = new List<WallInfo>();
+        foreach (var w in room.walls.Values)
+            trimWalls.Add(new WallInfo { name = w.name, startPoint = w.startPoint + w.normal * trimT, endPoint = w.endPoint + w.normal * trimT, normal = w.normal, length = w.length, height = w.height, transform = w.transform });
+        CreateArchitecturalTrim(roomRoot, trimWalls);
 
         if (debugMode) Debug.Log($"[BranchingRoomsGenerator] Created room '{roomId}' at z={startZ} depth={depth}");
     }

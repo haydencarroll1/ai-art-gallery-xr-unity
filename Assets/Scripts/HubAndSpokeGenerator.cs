@@ -325,15 +325,21 @@ public class HubAndSpokeGenerator : TopologyGenerator
 
         generatedRooms[roomId] = room;
 
-        // Hub rooms with all doorways have empty room.walls (placement walls only),
-        // but still need trim on all 4 physical walls.
-        List<WallInfo> trimWalls = new List<WallInfo>(room.walls.Values);
-        if (isHub && trimWalls.Count == 0)
+        // Build trim walls offset to the inner face (wall centers are at boundary; inner face = center + normal * t).
+        float trimT = wallThickness / 2f;
+        List<WallInfo> trimWalls = new List<WallInfo>();
+        if (isHub && room.walls.Count == 0)
         {
-            trimWalls.Add(new WallInfo { name = WallNames.Back,  startPoint = new Vector3(center.x - halfW, 0f, center.z - halfD), endPoint = new Vector3(center.x + halfW, 0f, center.z - halfD), normal = Vector3.forward, length = width,  height = height, transform = roomRoot.transform });
-            trimWalls.Add(new WallInfo { name = WallNames.Front, startPoint = new Vector3(center.x - halfW, 0f, center.z + halfD), endPoint = new Vector3(center.x + halfW, 0f, center.z + halfD), normal = Vector3.back,    length = width,  height = height, transform = roomRoot.transform });
-            trimWalls.Add(new WallInfo { name = WallNames.Left,  startPoint = new Vector3(center.x - halfW, 0f, center.z - halfD), endPoint = new Vector3(center.x - halfW, 0f, center.z + halfD), normal = Vector3.right,   length = depth,  height = height, transform = roomRoot.transform });
-            trimWalls.Add(new WallInfo { name = WallNames.Right, startPoint = new Vector3(center.x + halfW, 0f, center.z - halfD), endPoint = new Vector3(center.x + halfW, 0f, center.z + halfD), normal = Vector3.left,    length = depth,  height = height, transform = roomRoot.transform });
+            // Hub rooms have all walls as doorways so room.walls is empty; build all 4 explicitly at inner faces.
+            trimWalls.Add(new WallInfo { name = WallNames.Back,  startPoint = new Vector3(center.x - halfW, 0f, center.z - halfD + trimT), endPoint = new Vector3(center.x + halfW, 0f, center.z - halfD + trimT), normal = Vector3.forward, length = width,  height = height, transform = roomRoot.transform });
+            trimWalls.Add(new WallInfo { name = WallNames.Front, startPoint = new Vector3(center.x - halfW, 0f, center.z + halfD - trimT), endPoint = new Vector3(center.x + halfW, 0f, center.z + halfD - trimT), normal = Vector3.back,    length = width,  height = height, transform = roomRoot.transform });
+            trimWalls.Add(new WallInfo { name = WallNames.Left,  startPoint = new Vector3(center.x - halfW + trimT, 0f, center.z - halfD), endPoint = new Vector3(center.x - halfW + trimT, 0f, center.z + halfD), normal = Vector3.right,   length = depth,  height = height, transform = roomRoot.transform });
+            trimWalls.Add(new WallInfo { name = WallNames.Right, startPoint = new Vector3(center.x + halfW - trimT, 0f, center.z - halfD), endPoint = new Vector3(center.x + halfW - trimT, 0f, center.z + halfD), normal = Vector3.left,    length = depth,  height = height, transform = roomRoot.transform });
+        }
+        else
+        {
+            foreach (var w in room.walls.Values)
+                trimWalls.Add(new WallInfo { name = w.name, startPoint = w.startPoint + w.normal * trimT, endPoint = w.endPoint + w.normal * trimT, normal = w.normal, length = w.length, height = w.height, transform = w.transform });
         }
         CreateArchitecturalTrim(roomRoot, trimWalls);
     }

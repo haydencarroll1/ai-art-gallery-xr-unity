@@ -336,25 +336,25 @@ public class BranchingRoomsGenerator : TopologyGenerator
         {
             GameObject lightsParent = new GameObject($"Lights_{room.id}");
             lightsParent.transform.SetParent(generatedRoot.transform);
-            lightsParent.transform.position = room.center;
+            lightsParent.transform.localPosition = Vector3.zero;
 
             Color lightColor = GetCeilingLightColor();
             float intensity = GetPointLightIntensity((themePalette?.lightIntensity ?? 1f) * lightIntensity);
-            
+
             float width = room.dimensions.width;
             float depth = room.dimensions.length > 0 ? room.dimensions.length : room.dimensions.depth;
             float range = GetPointLightRange(Mathf.Max(width, depth) * 1.5f);
             float inset = 1.2f;
             float usableW = Mathf.Max(0.1f, width - inset * 2f);
             float usableD = Mathf.Max(0.1f, depth - inset * 2f);
-            
+
             GetCeilingGridLightCounts(lightsAcross, lightsAlong, out int across, out int along);
             float stepX = across > 1 ? usableW / (across - 1) : 0f;
             float stepZ = along > 1 ? usableD / (along - 1) : 0f;
-            
-            float startX = -width / 2f + inset;
-            float startZ = -depth / 2f + inset;
-            float y = room.dimensions.height - 0.3f;
+
+            float startX = room.center.x - width / 2f + inset;
+            float startZ = room.center.z - depth / 2f + inset;
+            float worldY = room.floorY + room.dimensions.height - 0.3f;
             
             int index = 0;
             for (int zi = 0; zi < along; zi++)
@@ -362,12 +362,12 @@ public class BranchingRoomsGenerator : TopologyGenerator
                 for (int xi = 0; xi < across; xi++)
                 {
                     index++;
-                    float x = across > 1 ? startX + stepX * xi : 0f;
-                    float z = along > 1 ? startZ + stepZ * zi : 0f;
-                    
+                    float x = across > 1 ? startX + stepX * xi : room.center.x;
+                    float z = along > 1 ? startZ + stepZ * zi : room.center.z;
+
                     GameObject lightObj = new GameObject($"CeilingLight_{index}");
                     lightObj.transform.SetParent(lightsParent.transform);
-                    lightObj.transform.localPosition = new Vector3(x, y, z);
+                    lightObj.transform.position = new Vector3(x, worldY, z);
                     
                     Light light = lightObj.AddComponent<Light>();
                     light.type = LightType.Point;

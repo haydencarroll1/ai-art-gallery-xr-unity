@@ -136,11 +136,8 @@ public class ThemeManager : MonoBehaviour
         }
     }
     
-    // All 16 built-in theme palettes. These are always available even without
-    // any ScriptableObject assets in the project.
     private static readonly Dictionary<string, ThemePalette> BuiltInThemes = new Dictionary<string, ThemePalette>
     {
-        // Default - Clean museum gallery
         ["default"] = new ThemePalette
         {
             primaryWall = new Color(0.95f, 0.93f, 0.9f),
@@ -155,7 +152,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 1.2f
         },
         
-        // Classical - Warm museum feel
         ["classical"] = new ThemePalette
         {
             primaryWall = new Color(0.85f, 0.78f, 0.65f),
@@ -170,7 +166,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 1.0f
         },
         
-        // Medieval - Heavy stone and timber
         ["medieval"] = new ThemePalette
         {
             primaryWall = new Color(0.5f, 0.45f, 0.4f),
@@ -185,7 +180,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 0.9f
         },
         
-        // Gothic - Dark and dramatic
         ["gothic"] = new ThemePalette
         {
             primaryWall = new Color(0.15f, 0.12f, 0.1f),
@@ -200,7 +194,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 0.8f
         },
         
-        // Renaissance - Rich plaster and marble
         ["renaissance"] = new ThemePalette
         {
             primaryWall = new Color(0.88f, 0.82f, 0.72f),
@@ -215,7 +208,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 1.0f
         },
         
-        // Asian - Paper and dark wood
         ["asian"] = new ThemePalette
         {
             primaryWall = new Color(0.85f, 0.82f, 0.75f),
@@ -230,7 +222,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 1.0f
         },
         
-        // Industrial - Raw concrete and metal
         ["industrial"] = new ThemePalette
         {
             primaryWall = new Color(0.5f, 0.5f, 0.5f),
@@ -245,7 +236,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 1.2f
         },
         
-        // Modern - Minimalist white cube
         ["modern"] = new ThemePalette
         {
             primaryWall = new Color(0.95f, 0.95f, 0.95f),
@@ -260,7 +250,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 1.4f
         },
         
-        // Minimalist - High key, low contrast
         ["minimalist"] = new ThemePalette
         {
             primaryWall = new Color(0.97f, 0.97f, 0.97f),
@@ -275,7 +264,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 1.3f
         },
         
-        // Neon - Cyberpunk vibes
         ["neon"] = new ThemePalette
         {
             primaryWall = new Color(0.05f, 0.05f, 0.1f),
@@ -290,7 +278,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 1.0f
         },
         
-        // Nature - Forest gallery
         ["nature"] = new ThemePalette
         {
             primaryWall = new Color(0.85f, 0.8f, 0.7f),
@@ -305,7 +292,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 1.1f
         },
         
-        // Desert - Warm sandstone
         ["desert"] = new ThemePalette
         {
             primaryWall = new Color(0.9f, 0.8f, 0.65f),
@@ -320,7 +306,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 1.3f
         },
         
-        // Futuristic - Dark sci-fi with cyan accents
         ["futuristic"] = new ThemePalette
         {
             primaryWall = new Color(0.1f, 0.1f, 0.15f),
@@ -335,7 +320,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 1.1f
         },
         
-        // Ethereal - Airy, luminous space
         ["ethereal"] = new ThemePalette
         {
             primaryWall = new Color(0.85f, 0.9f, 1f),
@@ -350,7 +334,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 1.0f
         },
         
-        // Warm - Cozy, amber tones
         ["warm"] = new ThemePalette
         {
             primaryWall = new Color(0.9f, 0.8f, 0.7f),
@@ -365,7 +348,6 @@ public class ThemeManager : MonoBehaviour
             lightIntensity = 1.2f
         },
         
-        // Cool - Clean, blue-grey
         ["cool"] = new ThemePalette
         {
             primaryWall = new Color(0.8f, 0.85f, 0.9f),
@@ -389,10 +371,7 @@ public class ThemeManager : MonoBehaviour
     [Tooltip("ScriptableObject themes loaded from Resources/Themes/ (optional)")]
     [SerializeField] private ThemeConfig defaultThemeAsset;
     
-    // Current palette being used
     private ThemePalette activePalette;
-    
-    // Loaded ScriptableObject themes (optional, loaded from Resources)
     private Dictionary<string, ThemeConfig> loadedAssetThemes = new Dictionary<string, ThemeConfig>();
     
     private Light cachedMainLight;
@@ -400,12 +379,10 @@ public class ThemeManager : MonoBehaviour
     public string CurrentTheme => currentTheme;
     public string CurrentMood => currentMood;
 
-    // Returns the active palette. Falls back to default so it never returns null.
     public ThemePalette GetPalette() => activePalette ?? BuiltInThemes[ThemeDefaults.Theme];
 
     private void Awake()
     {
-        // Handle duplicate instances (e.g., scene reload)
         if (_instance != null && _instance != this)
         {
             Debug.LogWarning("[ThemeManager] Duplicate instance destroyed");
@@ -415,22 +392,17 @@ public class ThemeManager : MonoBehaviour
         
         _instance = this;
         
-        // DontDestroyOnLoad only works on root GameObjects — detach first if parented
         if (transform.parent != null)
         {
             transform.SetParent(null);
         }
         DontDestroyOnLoad(gameObject);
         
-        // Initialize with default theme
         activePalette = BuiltInThemes[ThemeDefaults.Theme].Clone();
         
-        // Try to load any ScriptableObject themes from Resources (optional)
         TryLoadAssetThemes();
     }
     
-    // Tries to load ThemeConfig ScriptableObjects from Resources/Themes/.
-    // These are optional - the system works fine without them.
     private void TryLoadAssetThemes()
     {
         loadedAssetThemes.Clear();
@@ -456,8 +428,7 @@ public class ThemeManager : MonoBehaviour
 #endif
     }
     
-    // Sets the active theme. Checks ScriptableObject overrides first, then
-    // falls back to the built-in dictionary, then to default. Returns the palette.
+    // Priority: ScriptableObject override > built-in dictionary > default
     public ThemePalette SetTheme(string themeId, string moodId = null)
     {
         currentTheme = NormalizeThemeId(themeId);
@@ -477,16 +448,13 @@ public class ThemeManager : MonoBehaviour
         
         string key = currentTheme.ToLowerInvariant();
         
-        // Priority 1: Check for ScriptableObject asset override
         if (loadedAssetThemes.TryGetValue(key, out var assetTheme) && assetTheme != null)
         {
-            // Convert ThemeConfig to ThemePalette
             activePalette = ConvertThemeConfigToPalette(assetTheme);
 #if UNITY_EDITOR
             Debug.Log($"[ThemeManager] Theme '{currentTheme}' loaded from asset");
 #endif
         }
-        // Priority 2: Use built-in hardcoded theme
         else if (BuiltInThemes.TryGetValue(key, out var builtIn))
         {
             activePalette = builtIn.Clone();
@@ -494,7 +462,6 @@ public class ThemeManager : MonoBehaviour
             Debug.Log($"[ThemeManager] Theme '{currentTheme}' loaded from built-in defaults");
 #endif
         }
-        // Fallback: Use default theme
         else
         {
             activePalette = BuiltInThemes[ThemeDefaults.Theme].Clone();
@@ -503,7 +470,6 @@ public class ThemeManager : MonoBehaviour
 #endif
         }
 
-        // Apply mood modifications to palette
         ApplyMoodToPalette(activePalette, currentMood);
 
 #if UNITY_EDITOR

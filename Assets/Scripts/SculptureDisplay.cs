@@ -33,13 +33,9 @@ public class SculptureDisplay : MonoBehaviour
     [Header("Debug")]
     public bool debugMode = false;
 
-    // the currently loaded model root
     private GameObject currentModel;
-
-    // Fix: store GltfImport so it can be disposed — it holds native mesh/texture memory
+    // GltfImport holds native mesh/texture memory — must be disposed
     private GltfImport _gltfImport;
-
-    // current state
     private string currentUrl;
     private string currentPrompt;
     private bool isLoading = false;
@@ -53,8 +49,6 @@ public class SculptureDisplay : MonoBehaviour
         SetPlaceholderState(loading: true, error: false);
     }
 
-    // Downloads a GLB file from the given URL, parses it with glTFast,
-    // scales it to fit targetSize, and parents it to the sculpture anchor.
     public void LoadSculpture(string url, string prompt, System.Action<bool> onComplete = null)
     {
         if (string.IsNullOrEmpty(url))
@@ -76,7 +70,6 @@ public class SculptureDisplay : MonoBehaviour
         isLoading = true;
         SetPlaceholderState(loading: true, error: false);
 
-        // Clean up any previously loaded model
         if (currentModel != null)
         {
             Destroy(currentModel);
@@ -85,7 +78,6 @@ public class SculptureDisplay : MonoBehaviour
 
         if (debugMode) Debug.Log($"[SculptureDisplay] {gameObject.name}: Starting download from {url}");
 
-        // Step 1: Download the raw GLB bytes
         byte[] glbData = null;
 
         using (UnityWebRequest request = UnityWebRequest.Get(url))
@@ -93,7 +85,6 @@ public class SculptureDisplay : MonoBehaviour
             request.timeout = 30;
             yield return request.SendWebRequest();
 
-            // Guard against the GameObject being destroyed during the download
             if (this == null)
             {
                 isLoading = false;
@@ -114,8 +105,6 @@ public class SculptureDisplay : MonoBehaviour
             if (debugMode) Debug.Log($"SculptureDisplay on {gameObject.name}: Downloaded {glbData.Length / 1024}KB");
         }
 
-        // Step 2: Parse the GLB with glTFast (handles all mesh/material setup)
-        // Dispose previous import to free native mesh/texture memory
         _gltfImport?.Dispose();
         _gltfImport = new GltfImport();
 
@@ -131,7 +120,6 @@ public class SculptureDisplay : MonoBehaviour
             yield break;
         }
 
-        // Step 3: Instantiate the model into a container parented to the anchor
         currentModel = new GameObject("LoadedSculpture");
 
         Transform parentTransform = sculptureAnchor != null ? sculptureAnchor : transform;
@@ -154,7 +142,6 @@ public class SculptureDisplay : MonoBehaviour
             yield break;
         }
 
-        // Step 4: Scale and center so it sits nicely on the pedestal
         NormalizeModel(currentModel);
 
         SetPlaceholderState(loading: false, error: false);
@@ -178,7 +165,6 @@ public class SculptureDisplay : MonoBehaviour
             return;
         }
 
-        // Combine all renderer bounds to get the total bounding box
         Bounds bounds = renderers[0].bounds;
         foreach (Renderer r in renderers)
         {
@@ -193,7 +179,6 @@ public class SculptureDisplay : MonoBehaviour
             return;
         }
 
-        // Scale so the biggest axis matches targetSize
         float scale = targetSize / maxDimension;
         model.transform.localScale = Vector3.one * scale;
 
@@ -201,7 +186,6 @@ public class SculptureDisplay : MonoBehaviour
 
         if (centerModel)
         {
-            // Recalculate bounds after scaling
             bounds = renderers[0].bounds;
             foreach (Renderer r in renderers)
             {
@@ -236,7 +220,6 @@ public class SculptureDisplay : MonoBehaviour
             errorPlaceholder.SetActive(error);
         }
     }
-    // Fix: dispose GltfImport on destroy to free native mesh/texture memory
     private void OnDestroy()
     {
         _gltfImport?.Dispose();

@@ -57,7 +57,6 @@ public class HubAndSpokeGenerator : TopologyGenerator
             return;
         }
 
-        // Find hub room
         RoomConstraint hubConstraint = null;
         foreach (var room in constraints.rooms)
         {
@@ -80,14 +79,10 @@ public class HubAndSpokeGenerator : TopologyGenerator
             return;
         }
 
-        // Auto-inject hub doorways for every spoke so the hub wall always
-        // has an opening where a spoke connects, even if the manifest omits it.
         EnsureHubDoorwaysForSpokes(constraints, layoutPlan, hubConstraint, hubDims);
 
-        // Generate hub at origin
         GenerateRoom(hubConstraint.id, hubDims, Vector3.zero, isHub: true, spokeDoorWall: null);
 
-        // Generate spokes (skip spoke connecting wall - hub already has it)
         foreach (var room in constraints.rooms)
         {
             if (room.id == hubConstraint.id) continue;
@@ -99,7 +94,6 @@ public class HubAndSpokeGenerator : TopologyGenerator
             GenerateRoom(room.id, dims, pos, isHub: false, spokeDoorWall: doorWall);
         }
 
-        // Add doorway frames around hub-spoke connections
         GenerateHubDoorwayFrames(hubConstraint, hubDims, constraints, layoutPlan);
 
         if (generateLights)
@@ -184,7 +178,6 @@ public class HubAndSpokeGenerator : TopologyGenerator
         }
     }
 
-    // Returns which hub wall faces a spoke in the given direction.
     private string GetHubDoorWall(string direction)
     {
         switch (direction)
@@ -232,7 +225,6 @@ public class HubAndSpokeGenerator : TopologyGenerator
         roomRoot.transform.SetParent(generatedRoot.transform);
         roomRoot.transform.position = center;
 
-        // Floor
         GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
         floor.name = "Floor";
         floor.transform.SetParent(roomRoot.transform);
@@ -240,7 +232,6 @@ public class HubAndSpokeGenerator : TopologyGenerator
         floor.transform.localScale = new Vector3(width, 0.2f, depth);
         floor.GetComponent<Renderer>().sharedMaterial = floorMaterial;
 
-        // Ceiling
         GameObject ceiling = GameObject.CreatePrimitive(PrimitiveType.Cube);
         ceiling.name = "Ceiling";
         ceiling.transform.SetParent(roomRoot.transform);
@@ -260,7 +251,6 @@ public class HubAndSpokeGenerator : TopologyGenerator
         bool skipLeft = !isHub && spokeDoorWall == WallNames.Left;
         bool skipRight = !isHub && spokeDoorWall == WallNames.Right;
 
-        // Walls
         if (!skipBack)
             CreateWallWithCenteredDoorway(roomRoot.transform, "Wall_Back", width, height, -halfD, doorBack);
         if (!skipFront)
@@ -270,7 +260,6 @@ public class HubAndSpokeGenerator : TopologyGenerator
         if (!skipRight)
             CreateSideWallWithCenteredDoorway(roomRoot.transform, "Wall_Right", depth, height, halfW, doorRight);
 
-        // Register for placement (avoid doorway walls on hub to keep placement simple)
         GeneratedRoom room = new GeneratedRoom
         {
             id = roomId,
@@ -369,14 +358,11 @@ public class HubAndSpokeGenerator : TopologyGenerator
         float openingStart = left + (wallWidth - safeDoorWidth) / 2f;
         float openingEnd = openingStart + safeDoorWidth;
 
-        // Left segment
         float segLeftWidth = openingStart - left;
         CreateWallSegment(parent, name + "_Left", new Vector3(left + segLeftWidth / 2f, height / 2f, zPos), new Vector3(segLeftWidth, height, wallThickness));
-        // Right segment
         float right = wallWidth / 2f;
         float segRightWidth = right - openingEnd;
         CreateWallSegment(parent, name + "_Right", new Vector3(openingEnd + segRightWidth / 2f, height / 2f, zPos), new Vector3(segRightWidth, height, wallThickness));
-        // Top segment
         float lintelHeight = Mathf.Max(0.1f, height - safeDoorHeight);
         CreateWallSegment(parent, name + "_Top", new Vector3(0f, safeDoorHeight + lintelHeight / 2f, zPos), new Vector3(safeDoorWidth, lintelHeight, wallThickness));
     }

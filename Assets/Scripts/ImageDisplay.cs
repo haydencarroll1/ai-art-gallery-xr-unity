@@ -33,11 +33,8 @@ public class ImageDisplay : MonoBehaviour
     [Header("Debug")]
     public bool debugMode = false;
 
-    // cached references
     private Renderer displayRenderer;
     private MaterialPropertyBlock mpb;
-
-    // current state
     private string currentUrl;
     private string currentPrompt;
     private bool isLoading = false;
@@ -48,17 +45,13 @@ public class ImageDisplay : MonoBehaviour
 
     void Awake()
     {
-        // Don't initialize here. ArtworkPlacer sets targetRenderer AFTER
-        // AddComponent() calls Awake(). We initialize lazily in LoadImage().
+        // Lazy init — ArtworkPlacer sets targetRenderer after AddComponent()
     }
 
-    // Finds the renderer and material. Called lazily the first time LoadImage()
-    // is invoked, so that targetRenderer has been set by ArtworkPlacer first.
     public void InitializeRenderer()
     {
         if (debugMode) Debug.Log($"[ImageDisplay] {gameObject.name}: InitializeRenderer called");
 
-        // Priority 1: use the renderer that was set directly by ArtworkPlacer
         if (targetRenderer != null)
         {
             displayRenderer = targetRenderer;
@@ -66,20 +59,17 @@ public class ImageDisplay : MonoBehaviour
         }
         else
         {
-            // Priority 2: look for a child called "ImageSurface"
             Transform surface = transform.Find("ImageSurface");
             if (surface != null)
             {
                 displayRenderer = surface.GetComponent<Renderer>();
             }
 
-            // Priority 3: try this GameObject
             if (displayRenderer == null)
             {
                 displayRenderer = GetComponent<Renderer>();
             }
 
-            // Priority 4: search all children
             if (displayRenderer == null)
             {
                 displayRenderer = GetComponentInChildren<Renderer>();
@@ -99,8 +89,7 @@ public class ImageDisplay : MonoBehaviour
             return;
         }
 
-        // Make sure we're using the right texture property name for this shader.
-        // URP uses _BaseMap, Standard uses _MainTex.
+        // URP uses _BaseMap, Standard uses _MainTex
         if (!sharedMat.HasProperty(texturePropertyName))
         {
             if (sharedMat.HasProperty("_BaseMap"))
@@ -121,7 +110,6 @@ public class ImageDisplay : MonoBehaviour
         // instead of cloning materials. This preserves SRP batching.
         mpb = new MaterialPropertyBlock();
 
-        // Show loading placeholder while we wait for the download
         if (Application.isPlaying && loadingTexture != null)
         {
             mpb.SetTexture(texturePropertyName, loadingTexture);
@@ -129,9 +117,6 @@ public class ImageDisplay : MonoBehaviour
         }
     }
 
-    // Downloads a texture from the given URL and applies it to the material.
-    // The prompt string is just stored for reference (shown in debug or info panels).
-    // onComplete callback reports true on success, false on failure.
     public void LoadImage(string url, string prompt, System.Action<bool> onComplete = null)
     {
         if (debugMode) Debug.Log($"[ImageDisplay] {gameObject.name}: LoadImage called with URL: {url?.Substring(0, Mathf.Min(50, url?.Length ?? 0))}...");
@@ -144,7 +129,6 @@ public class ImageDisplay : MonoBehaviour
             return;
         }
 
-        // Lazy init - waits until targetRenderer is set by ArtworkPlacer
         if (displayRenderer == null || mpb == null)
         {
             InitializeRenderer();
@@ -179,8 +163,6 @@ public class ImageDisplay : MonoBehaviour
         {
             yield return request.SendWebRequest();
 
-            // Guard against the GameObject being destroyed during the download
-            // (e.g. gallery reloaded mid-flight).
             if (this == null || displayRenderer == null)
             {
                 isLoading = false;
@@ -209,7 +191,6 @@ public class ImageDisplay : MonoBehaviour
 
             if (debugMode) Debug.Log($"[ImageDisplay] {gameObject.name}: Download SUCCESS - {texture.width}x{texture.height}");
 
-            // Destroy the previous downloaded texture to free GPU memory
             if (downloadedTexture != null)
             {
                 Destroy(downloadedTexture);

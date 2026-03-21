@@ -17,7 +17,6 @@ public class GalleryLayoutDebugger : MonoBehaviour
     public bool showWallTypes = true;
     public float wallHeight = 4.0f; 
 
-    // Colors for our logic
     private Color colorHero = Color.red;       
     private Color colorCluster = Color.cyan;   
     private Color colorAmbient = Color.green;
@@ -27,12 +26,10 @@ public class GalleryLayoutDebugger : MonoBehaviour
     {
         string jsonToParse = "";
 
-        // Priority 1: Use the pasted text if it exists
         if (!string.IsNullOrEmpty(jsonContent))
         {
             jsonToParse = jsonContent;
         }
-        // Priority 2: Use the file
         else if (manifestFile != null)
         {
             jsonToParse = manifestFile.text;
@@ -40,21 +37,17 @@ public class GalleryLayoutDebugger : MonoBehaviour
 
         if (string.IsNullOrEmpty(jsonToParse)) return;
 
-        // 1. Parse JSON
         GalleryManifest manifest = JsonUtility.FromJson<GalleryManifest>(jsonToParse);
 
         if (manifest == null || manifest.layout_plan == null || manifest.layout_plan.Count == 0) return;
 
-        // 2. Iterate through rooms in the Locked Constraints (the source of truth for IDs)
         if (manifest.locked_constraints != null && manifest.locked_constraints.rooms != null)
         {
             int i = 0;
             foreach (var roomConstraint in manifest.locked_constraints.rooms)
             {
-                // Retrieve dimensions using the wrapper methods
                 RoomDimensions roomDims = manifest.GetRoomDimensions(roomConstraint.id);
                 
-                // If it returns null, check if it's an alcove
                 AlcoveDimensions alcoveDims = null;
                 if (roomDims == null)
                 {
@@ -77,11 +70,9 @@ public class GalleryLayoutDebugger : MonoBehaviour
 
     private void VisualizeRoom(string roomId, RoomDimensions room, int index)
     {
-        // Use depth if length is zero (open_hall uses depth)
         float roomLength = room.length > 0 ? room.length : room.depth;
         float xPos = index * (room.width + 5.0f);
 
-        // --- A. Draw Room Bounds ---
         if (showRoomBounds)
         {
             Gizmos.color = Color.white;
@@ -90,14 +81,11 @@ public class GalleryLayoutDebugger : MonoBehaviour
             Gizmos.DrawWireCube(center, size);
         }
 
-        // --- B. Simulate "Three Wall" Logic ---
         if (showWallTypes)
         {
-            // 1. Hero Wall (Mock: usually back or front)
             string heroWallName = "front"; 
             DrawWall(xPos, room.width, roomLength, heroWallName, colorHero);
 
-            // 2. Cluster Wall (Biggest remaining)
             var surfaces = new List<(string name, float area)>();
             surfaces.Add(("left", roomLength * wallHeight));
             surfaces.Add(("right", roomLength * wallHeight));
@@ -110,7 +98,6 @@ public class GalleryLayoutDebugger : MonoBehaviour
                 DrawWall(xPos, room.width, roomLength, clusterWall.name, colorCluster);
             }
 
-            // 3. Ambient (Rest)
             foreach (var s in surfaces)
             {
                 if (s.name != clusterWall.name)
@@ -119,7 +106,6 @@ public class GalleryLayoutDebugger : MonoBehaviour
                 }
             }
 
-            // 4. Partitions (freestanding walls inside open halls)
             if (room.partitions != null)
             {
                 foreach (var p in room.partitions)
@@ -132,7 +118,6 @@ public class GalleryLayoutDebugger : MonoBehaviour
 
     private void VisualizeAlcove(string roomId, AlcoveDimensions alcove, int index)
     {
-         // Simple visualization for alcoves (just draw box)
          if (showRoomBounds)
          {
             Gizmos.color = Color.yellow;

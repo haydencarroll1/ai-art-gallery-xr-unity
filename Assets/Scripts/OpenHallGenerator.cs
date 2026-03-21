@@ -96,7 +96,6 @@ public class OpenHallGenerator : TopologyGenerator
         hallRoot.transform.SetParent(generatedRoot.transform);
         hallRoot.transform.localPosition = Vector3.zero;
 
-        // Floor
         GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
         floor.name = "Floor";
         floor.transform.SetParent(hallRoot.transform);
@@ -104,7 +103,6 @@ public class OpenHallGenerator : TopologyGenerator
         floor.transform.localScale = new Vector3(width, 0.2f, depth);
         floor.GetComponent<Renderer>().sharedMaterial = floorMaterial;
 
-        // Ceiling
         GameObject ceiling = GameObject.CreatePrimitive(PrimitiveType.Cube);
         ceiling.name = "Ceiling";
         ceiling.transform.SetParent(hallRoot.transform);
@@ -112,13 +110,11 @@ public class OpenHallGenerator : TopologyGenerator
         ceiling.transform.localScale = new Vector3(width, 0.2f, depth);
         ceiling.GetComponent<Renderer>().sharedMaterial = ceilingMaterial;
 
-        // Outer walls (no entry doorway for open hall)
         CreateOuterWall(hallRoot.transform, "Wall_Back", width, height, -halfD, WallNames.Back, false, 0f, 0f);
         CreateOuterWall(hallRoot.transform, "Wall_Front", width, height, halfD, WallNames.Front, false, 0f, 0f);
         CreateOuterSideWall(hallRoot.transform, "Wall_Left", depth, height, -halfW, WallNames.Left, false, 0f, 0f);
         CreateOuterSideWall(hallRoot.transform, "Wall_Right", depth, height, halfW, WallNames.Right, false, 0f, 0f);
 
-        // Partitions
         if (dims.partitions != null)
         {
             foreach (var p in dims.partitions)
@@ -128,7 +124,6 @@ public class OpenHallGenerator : TopologyGenerator
             }
         }
 
-        // Register placement surfaces
         GeneratedRoom room = new GeneratedRoom
         {
             id = roomId,
@@ -139,7 +134,6 @@ public class OpenHallGenerator : TopologyGenerator
             walls = new Dictionary<string, WallInfo>()
         };
 
-        // Outer walls for placement
         room.walls[WallNames.Left] = new WallInfo
         {
             name = WallNames.Left,
@@ -181,7 +175,6 @@ public class OpenHallGenerator : TopologyGenerator
             transform = hallRoot.transform
         };
 
-        // Partition surfaces for placement
         if (dims.partitions != null)
         {
             foreach (var p in dims.partitions)
@@ -194,10 +187,8 @@ public class OpenHallGenerator : TopologyGenerator
         generatedRooms[roomId] = room;
         CreateArchitecturalTrim(hallRoot, new List<WallInfo>(room.walls.Values));
 
-        // Add ceiling beam grid (large open space benefits from overhead structure)
         GenerateCeilingBeamGrid(hallRoot.transform, room, 0.07f);
 
-        // Add end caps to partition walls so they don't look like floating planes
         if (dims.partitions != null)
         {
             foreach (var p in dims.partitions)
@@ -228,16 +219,13 @@ public class OpenHallGenerator : TopologyGenerator
         float openingStart = openingCenter - safeWidth / 2f;
         float openingEnd = openingCenter + safeWidth / 2f;
 
-        // Left segment
         float segLeft = openingStart - left;
         if (segLeft > 0.01f)
             CreateWallSegment(parent, name + "_Left", new Vector3(left + segLeft / 2f, height / 2f, zPos), new Vector3(segLeft, height, wallThickness));
-        // Right segment
         float right = wallWidth / 2f;
         float segRight = right - openingEnd;
         if (segRight > 0.01f)
             CreateWallSegment(parent, name + "_Right", new Vector3(openingEnd + segRight / 2f, height / 2f, zPos), new Vector3(segRight, height, wallThickness));
-        // Top segment
         float lintel = Mathf.Max(0.1f, height - safeHeight);
         CreateWallSegment(parent, name + "_Top", new Vector3(openingCenter, safeHeight + lintel / 2f, zPos), new Vector3(safeWidth, lintel, wallThickness));
     }

@@ -1,18 +1,13 @@
 using UnityEngine;
 
-// Shared material creation utilities used by TopologyGenerator and ArtworkPlacer.
-// Consolidated from duplicate implementations to avoid code drift.
-
 public static class MaterialUtility
 {
-    // Converts 0-255 RGB values to a Unity Color (0-1 range).
     public static Color Rgb(int r, int g, int b)
     {
         return new Color(r / 255f, g / 255f, b / 255f);
     }
 
-    // Creates a URP Lit material with style-controlled metallic/smoothness settings.
-    // Falls back to Standard or Diffuse shader if URP isn't available.
+    // Shader fallback chain: URP Lit > Standard > Diffuse > Unlit/Color
     public static Material CreateMaterial(string name, Color color, float metallic = 0f, float smoothness = 0.1f, Texture2D baseMap = null, Vector2? tiling = null)
     {
         Shader shader = Shader.Find("Universal Render Pipeline/Lit");

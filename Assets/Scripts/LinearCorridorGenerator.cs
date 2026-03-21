@@ -32,41 +32,34 @@ public class LinearCorridorGenerator : TopologyGenerator
     [Tooltip("Light intensity")]
     public float lightIntensity = 1.5f;
     
-    // Called by GalleryOrchestrator to build the corridor based on manifest data.
-    // Schema: expects rooms[] with corridor entries, dimensions from layout_plan[id]
     public override void Generate(LockedConstraints constraints, LayoutPlanWrapper layoutPlan)
     {
         if (debugMode) Debug.Log("[LinearCorridorGenerator] Starting generation...");
         
-        // Clear any existing geometry
         ClearGenerated();
 
         SetGenerationContext(constraints);
         string styleId = manifestContext != null ? manifestContext.GetGalleryStyle() : constraints?.gallery_style;
         ConfigureStyle(styleId);
         
-        // Create root object at WORLD ORIGIN (not relative to parent)
-        // This ensures wall positions match the placement calculations
+        // Root at world origin so wall positions match placement calculations
         generatedRoot = new GameObject("GeneratedGallery");
         generatedRoot.transform.SetParent(transform);
         generatedRoot.transform.position = Vector3.zero;
         generatedRoot.transform.rotation = Quaternion.identity;
         
-        // Validate we have rooms to generate
         if (constraints.rooms == null || constraints.rooms.Count == 0)
         {
             Debug.LogError("[LinearCorridorGenerator] No rooms defined in constraints!");
             return;
         }
         
-        // Track cumulative Z offset for sequential room placement
         float currentZOffset = 0f;
         int roomIndex = 0;
         int totalRooms = constraints.rooms.Count;
         float previousRoomWidth = 0f;
         float previousRoomHeight = 0f;
         
-        // Generate all rooms sequentially along the Z axis
         foreach (RoomConstraint roomConstraint in constraints.rooms)
         {
             RoomDimensions dimensions = layoutPlan.GetRoom(roomConstraint.id);
@@ -83,31 +76,25 @@ public class LinearCorridorGenerator : TopologyGenerator
                 Debug.Log($"[LinearCorridorGenerator] Dimensions: {dimensions.width}m wide x {dimensions.length}m long x {dimensions.height}m high");
             }
             
-            // Determine which walls to generate based on room position in sequence
             bool isFirstRoom = (roomIndex == 0);
             bool isLastRoom = (roomIndex == totalRooms - 1);
             
-            // Generate transition geometry if rooms have different widths
             if (!isFirstRoom && Mathf.Abs(previousRoomWidth - dimensions.width) > 0.01f)
             {
                 GenerateTransitionWalls(currentZOffset, previousRoomWidth, dimensions.width, 
                                         Mathf.Max(previousRoomHeight, dimensions.height));
             }
             
-            // Generate the corridor geometry at the current Z offset
             GenerateCorridor(roomConstraint.id, dimensions, currentZOffset, isFirstRoom, isLastRoom);
             
-            // Generate lighting for this room
             if (generateLights)
             {
                 GenerateLighting(dimensions, currentZOffset);
             }
             
-            // Track this room's dimensions for the next transition
             previousRoomWidth = dimensions.width;
             previousRoomHeight = dimensions.height;
             
-            // Move offset forward for the next room
             currentZOffset += dimensions.length;
             roomIndex++;
         }
@@ -126,21 +113,18 @@ public class LinearCorridorGenerator : TopologyGenerator
         float prevHalfWidth = prevWidth / 2f;
         float nextHalfWidth = nextWidth / 2f;
         
-        // Calculate the gap on each side
         float widthDiff = Mathf.Abs(nextWidth - prevWidth) / 2f;
         
-        if (widthDiff < 0.01f) return; // No significant difference
+        if (widthDiff < 0.01f) return;
         
         GameObject transitionObj = new GameObject($"Transition_Z{zPosition}");
         transitionObj.transform.SetParent(generatedRoot.transform);
         transitionObj.transform.localPosition = Vector3.zero;
         
-        // Determine which room is wider
         bool nextIsWider = nextWidth > prevWidth;
         float narrowHalfWidth = Mathf.Min(prevHalfWidth, nextHalfWidth);
         float wideHalfWidth = Mathf.Max(prevHalfWidth, nextHalfWidth);
         
-        // Left transition wall (fills gap between narrow and wide room on left side)
         GameObject leftTransition = GameObject.CreatePrimitive(PrimitiveType.Cube);
         leftTransition.name = "TransitionWall_Left";
         leftTransition.transform.SetParent(transitionObj.transform);
@@ -152,7 +136,6 @@ public class LinearCorridorGenerator : TopologyGenerator
         leftTransition.transform.localScale = new Vector3(widthDiff, height, wallThickness);
         leftTransition.GetComponent<Renderer>().sharedMaterial = wallMaterial;
         
-        // Right transition wall (fills gap between narrow and wide room on right side)
         GameObject rightTransition = GameObject.CreatePrimitive(PrimitiveType.Cube);
         rightTransition.name = "TransitionWall_Right";
         rightTransition.transform.SetParent(transitionObj.transform);
@@ -180,7 +163,6 @@ public class LinearCorridorGenerator : TopologyGenerator
     /// <param name="isLastRoom">If true, generate front wall (exit)</param>
     private void GenerateCorridor(string roomId, RoomDimensions dims, float zOffset = 0f, bool isFirstRoom = true, bool isLastRoom = true)
     {
-        // Create room container
         GameObject roomObj = new GameObject($"Room_{roomId}");
         roomObj.transform.SetParent(generatedRoot.transform);
         roomObj.transform.localPosition = new Vector3(0, 0, zOffset);
@@ -191,8 +173,6 @@ public class LinearCorridorGenerator : TopologyGenerator
         float halfWidth = width / 2f;
         float halfLength = length / 2f;
         
-        // Create GeneratedRoom tracking object
-        // Note: wall positions are stored relative to world origin (including zOffset)
         GeneratedRoom room = new GeneratedRoom
         {
             id = roomId,
@@ -203,7 +183,6 @@ public class LinearCorridorGenerator : TopologyGenerator
             walls = new Dictionary<string, WallInfo>()
         };
         
-        // Floor uses a cube primitive for reliable physics collisions
         GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
         floor.name = "Floor";
         floor.transform.SetParent(roomObj.transform);
@@ -213,7 +192,6 @@ public class LinearCorridorGenerator : TopologyGenerator
         
         if (debugMode) Debug.Log($"[LinearCorridorGenerator] Floor WORLD pos: ({0}, {-0.1f}, {zOffset + halfLength}), scale: {floor.transform.localScale}");
         
-        // Ceiling
         GameObject ceiling = GameObject.CreatePrimitive(PrimitiveType.Cube);
         ceiling.name = "Ceiling";
         ceiling.transform.SetParent(roomObj.transform);
@@ -221,7 +199,6 @@ public class LinearCorridorGenerator : TopologyGenerator
         ceiling.transform.localScale = new Vector3(width, 0.2f, length);
         ceiling.GetComponent<Renderer>().sharedMaterial = ceilingMaterial;
         
-        // Left wall faces into corridor (+X normal)
         GameObject leftWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
         leftWall.name = "Wall_Left";
         leftWall.transform.SetParent(roomObj.transform);
@@ -242,7 +219,6 @@ public class LinearCorridorGenerator : TopologyGenerator
             transform = leftWall.transform
         };
         
-        // Right wall faces into corridor (-X normal)
         GameObject rightWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
         rightWall.name = "Wall_Right";
         rightWall.transform.SetParent(roomObj.transform);
@@ -264,7 +240,6 @@ public class LinearCorridorGenerator : TopologyGenerator
             transform = rightWall.transform
         };
         
-        // Back wall (entry end) - only for first room
         if (isFirstRoom)
         {
             GameObject backWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -286,7 +261,6 @@ public class LinearCorridorGenerator : TopologyGenerator
             };
         }
         
-        // Front wall (exit end) - only for last room
         if (isLastRoom)
         {
             GameObject frontWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -308,7 +282,6 @@ public class LinearCorridorGenerator : TopologyGenerator
             };
         }
         
-        // Register this room
         generatedRooms[roomId] = room;
         CreateArchitecturalTrim(roomObj, new List<WallInfo>(room.walls.Values));
         
@@ -319,13 +292,10 @@ public class LinearCorridorGenerator : TopologyGenerator
         }
     }
     
-    // Creates ceiling lights evenly spaced along the corridor, plus a directional fill.
-    // Tracks light indices globally to avoid duplicate names across rooms.
     private int globalLightIndex = 0;
     
     private void GenerateLighting(RoomDimensions dims, float zOffset = 0f)
     {
-        // Use a single lights parent for all rooms, create if doesn't exist
         Transform lightsParent = generatedRoot.transform.Find("Lights");
         if (lightsParent == null)
         {
@@ -333,7 +303,7 @@ public class LinearCorridorGenerator : TopologyGenerator
             lightsObj.transform.SetParent(generatedRoot.transform);
             lightsObj.transform.localPosition = Vector3.zero;
             lightsParent = lightsObj.transform;
-            globalLightIndex = 0; // Reset counter for new generation
+            globalLightIndex = 0;
         }
         
         float lightY = dims.height - 0.3f;
@@ -362,10 +332,8 @@ public class LinearCorridorGenerator : TopologyGenerator
             globalLightIndex++;
         }
         
-        // Only add one directional fill light for the first room
         if (zOffset == 0f)
         {
-            // Add a subtle directional light for ambient fill
             GameObject dirLightObj = new GameObject("DirectionalFill");
             dirLightObj.transform.SetParent(lightsParent);
             dirLightObj.transform.localPosition = new Vector3(0, dims.height, dims.length / 2f);
@@ -431,7 +399,6 @@ public class LinearCorridorGenerator : TopologyGenerator
         return false;
     }
     
-    // Editor-only gizmos showing wall positions and normals for debugging.
     void OnDrawGizmosSelected()
     {
         if (generatedRooms == null) return;
@@ -440,18 +407,15 @@ public class LinearCorridorGenerator : TopologyGenerator
         {
             foreach (var wall in room.walls.Values)
             {
-                // Draw wall line
                 Gizmos.color = Color.green;
                 Gizmos.DrawLine(wall.startPoint, wall.endPoint);
                 
-                // Draw normal at midpoint
                 Vector3 midpoint = (wall.startPoint + wall.endPoint) / 2f;
                 midpoint.y = room.dimensions.height / 2f;
                 
                 Gizmos.color = Color.blue;
                 Gizmos.DrawRay(midpoint, wall.normal * 0.5f);
                 
-                // Draw start/end points
                 Gizmos.color = Color.red;
                 Gizmos.DrawSphere(wall.startPoint, 0.1f);
                 Gizmos.DrawSphere(wall.endPoint, 0.1f);

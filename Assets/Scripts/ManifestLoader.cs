@@ -21,7 +21,6 @@ public class ManifestLoader : MonoBehaviour
     [Header("Debug")]
     public bool debugMode = false;
 
-    // Wraps the result of a load operation: either a parsed manifest or an error string.
     public class LoadResult
     {
         public bool success;
@@ -39,13 +38,11 @@ public class ManifestLoader : MonoBehaviour
         }
     }
 
-    // Starts a coroutine to fetch the manifest from a URL and calls onComplete when done.
     public void LoadFromUrl(string url, Action<LoadResult> onComplete)
     {
         StartCoroutine(LoadFromUrlCoroutine(url, onComplete));
     }
 
-    // Downloads JSON from a URL, parses it into a GalleryManifest, and returns the result.
     public IEnumerator LoadFromUrlCoroutine(string url, Action<LoadResult> onComplete)
     {
         if (string.IsNullOrEmpty(url))
@@ -83,9 +80,6 @@ public class ManifestLoader : MonoBehaviour
         }
     }
 
-    // Loads a manifest from the StreamingAssets folder. On Android/WebGL this
-    // still uses UnityWebRequest because those platforms don't support direct
-    // file access to StreamingAssets.
     public void LoadFromStreamingAssets(string filename, Action<LoadResult> onComplete)
     {
         string path = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
@@ -96,8 +90,6 @@ public class ManifestLoader : MonoBehaviour
     {
         if (debugMode) Debug.Log($"[ManifestLoader] Loading from: {path}");
 
-        // On Android and WebGL, StreamingAssets is inside the APK/bundle
-        // so we have to use UnityWebRequest even for "local" files.
         #if UNITY_ANDROID || UNITY_WEBGL
         string url = path;
         if (!path.StartsWith("file://") && !path.StartsWith("http"))
@@ -120,7 +112,6 @@ public class ManifestLoader : MonoBehaviour
             onComplete?.Invoke(result);
         }
         #else
-        // On Editor and Standalone we can just read the file directly
         try
         {
             if (!System.IO.File.Exists(path))
@@ -142,13 +133,6 @@ public class ManifestLoader : MonoBehaviour
         #endif
     }
 
-    // Parses a raw JSON string into a GalleryManifest. This is the core parsing
-    // method - all the load methods above end up calling this.
-    //
-    // Two steps:
-    //   1. JsonUtility.FromJson to parse all fields (layout_plan is now an array)
-    //   2. Validate the result (all required fields present, all placements
-    //      reference real assets, etc.)
     public LoadResult ParseManifestJson(string json)
     {
         if (string.IsNullOrEmpty(json))
@@ -158,8 +142,6 @@ public class ManifestLoader : MonoBehaviour
 
         try
         {
-            // Parse the full manifest in one shot — layout_plan is now a
-            // List<RoomLayoutEntry> so JsonUtility handles it directly
             GalleryManifest manifest = JsonUtility.FromJson<GalleryManifest>(json);
 
             if (manifest == null)
@@ -178,7 +160,6 @@ public class ManifestLoader : MonoBehaviour
                 Debug.Log($"[ManifestLoader] Assets: {manifest.assets?.Count ?? 0}");
             }
 
-            // Check everything the rest of the system needs is present
             string validationError = manifest.Validate();
             if (validationError != null)
             {

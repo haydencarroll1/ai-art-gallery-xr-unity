@@ -60,15 +60,10 @@ public class GalleryOrchestrator : MonoBehaviour
     [Tooltip("Player height offset from floor (0 = at floor level, XR handles actual height)")]
     public float playerHeightOffset = 0f;
 
-    // Component references - grabbed in Awake, added automatically if missing
     private ManifestLoader manifestLoader;
     private TopologyGenerator activeGenerator;
     private ArtworkPlacer artworkPlacer;
-
-    // Fallback camera created at runtime when XR is not active
     private Camera fallbackCamera;
-
-    // Current state of the gallery
     private GalleryManifest currentManifest;
     private GalleryLoadState loadState = GalleryLoadState.Idle;
     private string lastError;
@@ -119,7 +114,6 @@ public class GalleryOrchestrator : MonoBehaviour
         }
     }
 
-    // Decides which source to load from based on the Inspector toggles.
     public void LoadGallery()
     {
         if (useEmbeddedTestManifest)
@@ -136,35 +130,28 @@ public class GalleryOrchestrator : MonoBehaviour
         }
     }
 
-    // Fetches the manifest from the Cloudflare Worker API endpoint.
     public void LoadFromApi()
     {
         string url = $"{apiBaseUrl}/api/gallery";
         StartCoroutine(LoadGalleryCoroutine(url, isUrl: true));
     }
 
-    // Loads a JSON file from the StreamingAssets folder (useful for testing
-    // without a network connection).
     public void LoadFromLocalFile()
     {
         StartCoroutine(LoadGalleryCoroutine(localTestFile, isUrl: false));
     }
 
-    // Parses the hardcoded test JSON at the bottom of this file.
-    // No file I/O needed at all - great for quick iteration.
     public void LoadFromEmbeddedTestManifest()
     {
         StartCoroutine(LoadFromEmbeddedCoroutine());
     }
 
-    // Tears everything down and rebuilds from scratch.
     public void Reload()
     {
         ClearGallery();
         LoadGallery();
     }
 
-    // Destroys all generated geometry and placed artwork so we can start fresh.
     public void ClearGallery()
     {
         // Stop any in-flight download coroutines so callbacks don't fire on
@@ -185,8 +172,6 @@ public class GalleryOrchestrator : MonoBehaviour
         loadState = GalleryLoadState.Idle;
     }
 
-    // Kicks off the loading pipeline. Fetches the manifest from either a URL
-    // or a local file, then hands off to ContinueLoadingFromManifest().
     private IEnumerator LoadGalleryCoroutine(string source, bool isUrl)
     {
         loadState = GalleryLoadState.LoadingManifest;
@@ -197,7 +182,6 @@ public class GalleryOrchestrator : MonoBehaviour
 
         if (debugMode) Debug.Log($"[GalleryOrchestrator] Loading from: {source}");
 
-        // Step 1: Load the manifest JSON
         ManifestLoader.LoadResult result = null;
         bool loadComplete = false;
 
@@ -210,7 +194,6 @@ public class GalleryOrchestrator : MonoBehaviour
             manifestLoader.LoadFromStreamingAssets(source, r => { result = r; loadComplete = true; });
         }
 
-        // Spin until the callback fires
         while (!loadComplete)
         {
             yield return null;
@@ -224,11 +207,9 @@ public class GalleryOrchestrator : MonoBehaviour
 
         currentManifest = result.manifest;
 
-        // Continue with the rest of the pipeline (theme, geometry, placement, assets)
         yield return StartCoroutine(ContinueLoadingFromManifest());
     }
 
-    // Same as above but parses the embedded test JSON instead of loading a file.
     private IEnumerator LoadFromEmbeddedCoroutine()
     {
         loadState = GalleryLoadState.LoadingManifest;
@@ -259,7 +240,6 @@ public class GalleryOrchestrator : MonoBehaviour
             Debug.Log($"[GalleryOrchestrator] Topology: {currentManifest.GetTopology()}");
         }
 
-        // Step 2: Apply the theme so materials and lighting match the manifest
         loadState = GalleryLoadState.ApplyingTheme;
         UpdateStatus("Applying theme...");
 
@@ -275,7 +255,6 @@ public class GalleryOrchestrator : MonoBehaviour
 
         yield return null;
 
-        // Step 3: Pick the right generator and build the room geometry
         loadState = GalleryLoadState.GeneratingGeometry;
         UpdateStatus("Generating gallery...");
 
@@ -299,12 +278,10 @@ public class GalleryOrchestrator : MonoBehaviour
         activeGenerator.SetManifestContext(currentManifest);
         activeGenerator.Generate(currentManifest.locked_constraints, currentManifest.GetLayoutPlanWrapper());
 
-        // Put the player near the entry so they can start walking through
         PositionPlayerAtSpawn();
 
         yield return null;
 
-        // Step 4: Create frames and pedestals at the positions the manifest says
         loadState = GalleryLoadState.PlacingArtwork;
         UpdateStatus("Placing artwork...");
 
@@ -312,13 +289,11 @@ public class GalleryOrchestrator : MonoBehaviour
 
         yield return null;
 
-        // Step 5: Download images and GLB models, apply them to the displays
         loadState = GalleryLoadState.LoadingAssets;
         UpdateStatus("Loading artwork...");
 
         yield return StartCoroutine(LoadAllArtworkAssets());
 
-        // Done!
         loadState = GalleryLoadState.Complete;
         UpdateStatus("Gallery loaded!");
         ClearError();
@@ -328,11 +303,8 @@ public class GalleryOrchestrator : MonoBehaviour
         if (debugMode) Debug.Log("[GalleryOrchestrator] Gallery loading complete!");
     }
 
-    // Creates a fallback camera for non-XR builds (Mac desktop, etc.).
-    // Disables the XR Origin's camera so there's no conflict.
     private void SetupFallbackCamera()
     {
-        // Disable the XR Origin camera since it won't work without a headset
         var xrCam = FindFirstObjectByType<XROrigin>();
         if (xrCam != null)
         {
@@ -354,7 +326,6 @@ public class GalleryOrchestrator : MonoBehaviour
         if (debugMode) Debug.Log("[GalleryOrchestrator] Created fallback camera (no XR device detected)");
     }
 
-    // Moves the XR Origin (or fallback camera) to the gallery entry point.
     private void PositionPlayerAtSpawn()
     {
         Vector3 spawnPosition = new Vector3(0f, 1.6f, 1.5f);
@@ -381,7 +352,6 @@ public class GalleryOrchestrator : MonoBehaviour
             }
         }
 
-        // Position whichever camera system is active
         if (fallbackCamera != null)
         {
             fallbackCamera.transform.position = spawnPosition;
@@ -409,8 +379,6 @@ public class GalleryOrchestrator : MonoBehaviour
         }
     }
 
-    // Looks at the topology string from the manifest and creates (or reuses)
-    // the matching generator component on this GameObject.
     private bool SetupTopologyGenerator()
     {
         string topology = currentManifest.GetTopology();
@@ -448,7 +416,6 @@ public class GalleryOrchestrator : MonoBehaviour
         return true;
     }
 
-    // Returns an existing component of type T, or adds a new one if missing.
     private T GetOrAddComponent<T>() where T : Component
     {
         T component = GetComponent<T>();
@@ -459,9 +426,6 @@ public class GalleryOrchestrator : MonoBehaviour
         return component;
     }
 
-    // Fires off all image and sculpture downloads in parallel, then waits
-    // until every one has finished (or failed). Updates the status text
-    // with a running count so the user can see progress.
     private IEnumerator LoadAllArtworkAssets()
     {
         var imageDisplays = artworkPlacer.ImageDisplays;
@@ -473,13 +437,11 @@ public class GalleryOrchestrator : MonoBehaviour
 
         if (debugMode) Debug.Log($"[GalleryOrchestrator] Loading {totalAssets} assets...");
 
-        // Kick off all image downloads
         for (int i = 0; i < imageDisplays.Count; i++)
         {
             ImageDisplay display = imageDisplays[i];
             if (display == null) continue;
 
-            // The display's GameObject name matches the asset ID
             string assetId = display.gameObject.name;
             ArtworkAsset asset = currentManifest.GetAssetById(assetId);
 
@@ -497,13 +459,11 @@ public class GalleryOrchestrator : MonoBehaviour
             });
         }
 
-        // Kick off all sculpture downloads
         for (int i = 0; i < sculptureDisplays.Count; i++)
         {
             SculptureDisplay display = sculptureDisplays[i];
             if (display == null) continue;
 
-            // Pedestal GameObjects are named "Pedestal_<assetId>" so we strip the prefix
             string objName = display.gameObject.name;
             string assetId = objName.StartsWith("Pedestal_") ? objName.Substring(9) : objName;
             ArtworkAsset asset = currentManifest.GetAssetById(assetId);
@@ -522,7 +482,6 @@ public class GalleryOrchestrator : MonoBehaviour
             });
         }
 
-        // Wait for every download to finish
         while (pendingLoads > 0)
         {
             UpdateStatus($"Loading artwork... ({totalAssets - pendingLoads}/{totalAssets})");
@@ -535,7 +494,6 @@ public class GalleryOrchestrator : MonoBehaviour
         }
     }
 
-    // Sets the error state, logs it, updates the UI, and fires the onLoadFailed event.
     private void HandleError(string error)
     {
         lastError = error;
@@ -549,7 +507,6 @@ public class GalleryOrchestrator : MonoBehaviour
         onLoadFailed?.Invoke(error);
     }
 
-    // UI helpers - safe to call even if the text fields aren't assigned.
     private void UpdateStatus(string text)
     {
         if (statusText != null)
@@ -576,8 +533,6 @@ public class GalleryOrchestrator : MonoBehaviour
         }
     }
 
-    // Hardcoded test manifest for quick iteration without any file or network I/O.
-    // This creates a simple 6-image linear corridor with modern theme.
     private string GetTestManifestJson()
     {
         return @"{
@@ -621,8 +576,6 @@ public class GalleryOrchestrator : MonoBehaviour
     }
 }
 
-// Tracks where we are in the five-step loading pipeline.
-// The orchestrator moves through these states in order.
 public enum GalleryLoadState
 {
     Idle,

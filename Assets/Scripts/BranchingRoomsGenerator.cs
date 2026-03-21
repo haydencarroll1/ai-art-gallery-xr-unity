@@ -12,6 +12,15 @@ using System.Collections.Generic;
 // Current implementation: places rooms sequentially along Z axis.
 // Front/back walls are omitted between connected rooms to create openings.
 
+// WALL NAMING CONVENTION (backend-Unity contract):
+// Rooms are placed sequentially along +Z. Within each room:
+// "back"  = lower-Z wall (entry side, omitted between connected rooms)
+// "front" = higher-Z wall (exit side, omitted between connected rooms)
+// "left"  = X=-halfWidth, runs along Z axis
+// "right" = X=+halfWidth, runs along Z axis
+//
+// The backend should send hero placements on wall:"front" of the last room
+// for terminus placement. Doorway walls are not registered for placement.
 public class BranchingRoomsGenerator : TopologyGenerator
 {
     [Header("Doorway Settings")]

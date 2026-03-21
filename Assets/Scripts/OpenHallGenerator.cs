@@ -16,6 +16,16 @@ using System.Collections.Generic;
 //
 // Partition surfaces are registered as "{partition_id}_front" and "{partition_id}_back"
 
+// WALL NAMING CONVENTION (backend-Unity contract):
+// Hall is centered at origin. All walls are present (no doorway omissions).
+// "back"  = -Z wall (entry side)
+// "front" = +Z wall (far end, hero terminus wall)
+// "left"  = -X wall
+// "right" = +X wall
+//
+// Partition surfaces are registered as "{partition_id}_front" and "{partition_id}_back".
+// The backend should send hero placements on wall:"back" or wall:"front" for
+// perimeter placement, or on a partition surface for freestanding placement.
 public class OpenHallGenerator : TopologyGenerator
 {
     [Header("Partition Settings")]

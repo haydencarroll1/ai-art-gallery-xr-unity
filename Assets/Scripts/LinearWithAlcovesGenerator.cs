@@ -12,6 +12,14 @@ using System.Collections.Generic;
 // Main corridor runs along +Z (entry at Z=0, exit at Z=length).
 // Left/right walls are segmented to create alcove openings.
 
+// WALL NAMING CONVENTION (backend-Unity contract):
+// "back"  = Z=0, the ENTRY end where the player spawns
+// "front" = Z=length, the FAR end (hero terminus wall)
+// "left"  = X=-halfWidth, runs along Z axis
+// "right" = X=+halfWidth, runs along Z axis
+//
+// The backend should send hero placements on wall:"front" for terminus placement.
+// If the backend sends wall:"back", the hero ends up BEHIND the player at the entry.
 public class LinearWithAlcovesGenerator : TopologyGenerator
 {
     [Header("Lighting")]

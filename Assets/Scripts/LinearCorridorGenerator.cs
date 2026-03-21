@@ -12,6 +12,14 @@ using System.Collections.Generic;
 // floor at Y=0, entry at Z=0, exit at Z=length.
 // Multiple rooms are connected sequentially along Z axis.
 
+// WALL NAMING CONVENTION (backend-Unity contract):
+// "back"  = Z=0, the ENTRY end where the player spawns
+// "front" = Z=length, the FAR end (hero terminus wall)
+// "left"  = X=-halfWidth, runs along Z axis
+// "right" = X=+halfWidth, runs along Z axis
+//
+// Multi-room corridors: "back" is on the first room only, "front" on the last.
+// The backend should send hero placements on wall:"front" for terminus placement.
 public class LinearCorridorGenerator : TopologyGenerator
 {
     [Header("Corridor Settings")]

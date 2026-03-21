@@ -12,6 +12,17 @@ using System.Collections.Generic;
 //
 // Hub is generated at origin, spokes extend outward in their direction.
 
+// WALL NAMING CONVENTION (backend-Unity contract):
+// Hub is centered at origin. Spokes extend outward in cardinal directions.
+// Within each room (hub or spoke):
+// "back"  = -Z wall (south-facing)
+// "front" = +Z wall (north-facing)
+// "left"  = -X wall (west-facing)
+// "right" = +X wall (east-facing)
+//
+// Spoke directions map to hub walls: north->"front", south->"back",
+// east->"right", west->"left". Doorway walls are not registered for placement.
+// The backend should send hero placements on non-doorway walls of the hub.
 public class HubAndSpokeGenerator : TopologyGenerator
 {
     [Header("Doorway Settings")]

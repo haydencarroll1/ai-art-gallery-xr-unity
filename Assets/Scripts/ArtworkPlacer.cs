@@ -265,150 +265,6 @@ public class ArtworkPlacer : MonoBehaviour
         public float positionAlong;
     }
 
-    private void ArrangeClusterPlacements(GalleryManifest manifest, List<PlacementInstruction> placements)
-    {
-        if (manifest == null || placements == null || placements.Count == 0 || topologyGenerator == null)
-        {
-            return;
-        }
-
-        Dictionary<string, List<ClusterItem>> clusters = new Dictionary<string, List<ClusterItem>>();
-        float borderWidth = GetFrameBorderWidthForStyle();
-
-        for (int i = 0; i < placements.Count; i++)
-        {
-            PlacementInstruction placement = placements[i];
-            if (placement == null)
-            {
-                continue;
-            }
-
-            ArtworkAsset asset = manifest.GetAssetById(placement.asset_id);
-            if (asset == null || !asset.Is2D || NormalizeRole(asset.GetRole()) != "cluster")
-            {
-                continue;
-            }
-
-            string clusterId = asset.GetClusterId();
-            if (string.IsNullOrEmpty(clusterId))
-            {
-                continue;
-            }
-
-            if (!TryResolveWallTarget(placement, out var resolved) || !TryGetWallLength(resolved.roomId, resolved.wallKey, out _))
-            {
-                continue;
-            }
-
-            float baseWidth = asset.width > 0f ? asset.width : 1.2f;
-            float spanWidth = Mathf.Max(0.55f, baseWidth + borderWidth * 2f);
-
-            if (!clusters.TryGetValue(clusterId, out var clusterItems))
-            {
-                clusterItems = new List<ClusterItem>();
-                clusters[clusterId] = clusterItems;
-            }
-
-            clusterItems.Add(new ClusterItem
-            {
-                placement = placement,
-                asset = asset,
-                spanWidth = spanWidth,
-                sourcePositionAlong = resolved.positionAlong
-            });
-        }
-
-        foreach (var clusterKvp in clusters)
-        {
-            List<ClusterItem> clusterItems = clusterKvp.Value;
-            if (clusterItems == null || clusterItems.Count < 2 || clusterItems.Count > 6)
-            {
-                continue;
-            }
-
-            clusterItems.Sort((a, b) => b.asset.GetVisualWeight().CompareTo(a.asset.GetVisualWeight()));
-            ClusterItem anchor = clusterItems[0];
-
-            if (!TryResolveWallTarget(anchor.placement, out var anchorTarget))
-            {
-                continue;
-            }
-            if (!TryGetWallLength(anchorTarget.roomId, anchorTarget.wallKey, out float wallLength))
-            {
-                continue;
-            }
-
-            clusterItems.Sort((a, b) => a.sourcePositionAlong.CompareTo(b.sourcePositionAlong));
-
-            float minEdgePadding = 0.3f;
-            float availableWidth = Mathf.Max(0.4f, wallLength - minEdgePadding * 2f);
-            float totalSpanWidths = 0f;
-            for (int i = 0; i < clusterItems.Count; i++)
-            {
-                totalSpanWidths += clusterItems[i].spanWidth;
-            }
-
-            float gap = 0.28f;
-            int gapCount = clusterItems.Count - 1;
-            float needed = totalSpanWidths + gapCount * gap;
-
-            if (needed > availableWidth && gapCount > 0)
-            {
-                float reducedGap = (availableWidth - totalSpanWidths) / gapCount;
-                gap = Mathf.Max(0.1f, reducedGap);
-                needed = totalSpanWidths + gapCount * gap;
-            }
-
-            if (needed > availableWidth)
-            {
-                float shrink = Mathf.Clamp(availableWidth / Mathf.Max(0.01f, totalSpanWidths), 0.65f, 1f);
-                totalSpanWidths = 0f;
-                for (int i = 0; i < clusterItems.Count; i++)
-                {
-                    clusterItems[i].spanWidth *= shrink;
-                    totalSpanWidths += clusterItems[i].spanWidth;
-                }
-                needed = totalSpanWidths + gapCount * gap;
-            }
-
-            float clusterCenter = anchorTarget.positionAlong > 0.01f ? anchorTarget.positionAlong : wallLength * 0.5f;
-            float minCenter = minEdgePadding + needed * 0.5f;
-            float maxCenter = wallLength - minEdgePadding - needed * 0.5f;
-            if (maxCenter < minCenter)
-            {
-                clusterCenter = wallLength * 0.5f;
-            }
-            else
-            {
-                clusterCenter = Mathf.Clamp(clusterCenter, minCenter, maxCenter);
-            }
-
-            float cursor = clusterCenter - needed * 0.5f;
-            for (int i = 0; i < clusterItems.Count; i++)
-            {
-                ClusterItem item = clusterItems[i];
-                float posAlong = cursor + item.spanWidth * 0.5f;
-                float minPos = minEdgePadding + item.spanWidth * 0.5f;
-                float maxPos = wallLength - minEdgePadding - item.spanWidth * 0.5f;
-                if (maxPos < minPos)
-                {
-                    posAlong = wallLength * 0.5f;
-                }
-                else
-                {
-                    posAlong = Mathf.Clamp(posAlong, minPos, maxPos);
-                }
-                ApplyResolvedWallTarget(item.placement, anchorTarget, posAlong);
-                cursor += item.spanWidth + gap;
-            }
-
-            if (debugMode)
-            {
-                Debug.Log($"[ArtworkPlacer] Cluster '{clusterKvp.Key}' grouped with {clusterItems.Count} pieces on {anchorTarget.roomId}/{anchorTarget.wallKey}");
-            }
-        }
-    }
-
     private bool TryResolveWallTarget(PlacementInstruction placement, out ResolvedWallTarget target)
     {
         target = null;
@@ -887,6 +743,7 @@ public class ArtworkPlacer : MonoBehaviour
         baseObj.transform.localPosition = new Vector3(0, pedestalHeight / 2f, 0);
         baseObj.transform.localScale = new Vector3(pedestalDiameter, pedestalHeight / 2f, pedestalDiameter);
         baseObj.GetComponent<Renderer>().sharedMaterial = pedestalMaterial;
+        var baseCol = baseObj.GetComponent<Collider>(); if (baseCol != null) Destroy(baseCol);
 
         // Top disc (slightly wider than the base)
         GameObject topObj = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -895,6 +752,7 @@ public class ArtworkPlacer : MonoBehaviour
         topObj.transform.localPosition = new Vector3(0, pedestalHeight + 0.025f, 0);
         topObj.transform.localScale = new Vector3(pedestalDiameter * 1.2f, 0.025f, pedestalDiameter * 1.2f);
         topObj.GetComponent<Renderer>().sharedMaterial = pedestalMaterial;
+        var topCol = topObj.GetComponent<Collider>(); if (topCol != null) Destroy(topCol);
 
         // Empty transform sitting on top of the pedestal - the loaded model parents here
         GameObject anchor = new GameObject("SculptureAnchor");
@@ -1003,17 +861,6 @@ public class ArtworkPlacer : MonoBehaviour
         return 1f;
     }
     
-    // Returns sort priority: heroes first (0), then clusters (1), then ambient (2)
-    private int GetRoleOrder(string role)
-    {
-        return role switch
-        {
-            "hero" => 0,
-            "cluster" => 1,
-            _ => 2
-        };
-    }
-
     private string NormalizeRole(string role)
     {
         if (string.IsNullOrEmpty(role))

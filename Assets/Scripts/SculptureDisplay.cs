@@ -90,6 +90,7 @@ public class SculptureDisplay : MonoBehaviour
 
         using (UnityWebRequest request = UnityWebRequest.Get(url))
         {
+            request.timeout = 30;
             yield return request.SendWebRequest();
 
             // Guard against the GameObject being destroyed during the download

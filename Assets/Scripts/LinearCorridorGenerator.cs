@@ -223,9 +223,9 @@ public class LinearCorridorGenerator : TopologyGenerator
         
         if (debugMode) Debug.Log($"[LinearCorridorGenerator] Left wall WORLD pos: {leftWall.transform.position}, inner surface at x={-halfWidth}");
         
-        room.walls["left"] = new WallInfo
+        room.walls[WallNames.Left] = new WallInfo
         {
-            name = "left",
+            name = WallNames.Left,
             startPoint = new Vector3(-halfWidth, 0, zOffset),  // Wall surface position (world space)
             endPoint = new Vector3(-halfWidth, 0, zOffset + length),
             normal = Vector3.right, // Faces into corridor (+X)
@@ -245,9 +245,9 @@ public class LinearCorridorGenerator : TopologyGenerator
         if (debugMode) Debug.Log($"[LinearCorridorGenerator] Right wall WORLD pos: {rightWall.transform.position}, inner surface at x={halfWidth}");
 
         
-        room.walls["right"] = new WallInfo
+        room.walls[WallNames.Right] = new WallInfo
         {
-            name = "right",
+            name = WallNames.Right,
             startPoint = new Vector3(halfWidth, 0, zOffset),  // Wall surface position (world space)
             endPoint = new Vector3(halfWidth, 0, zOffset + length),
             normal = Vector3.left, // Faces into corridor (-X)
@@ -266,9 +266,9 @@ public class LinearCorridorGenerator : TopologyGenerator
             backWall.transform.localScale = new Vector3(width + wallThickness*2, height, wallThickness);
             backWall.GetComponent<Renderer>().sharedMaterial = wallMaterial;
             
-            room.walls["back"] = new WallInfo
+            room.walls[WallNames.Back] = new WallInfo
             {
-                name = "back",
+                name = WallNames.Back,
                 startPoint = new Vector3(-halfWidth, 0, zOffset),  // Wall surface position (world space)
                 endPoint = new Vector3(halfWidth, 0, zOffset),
                 normal = Vector3.forward, // Faces into corridor (+Z)
@@ -288,9 +288,9 @@ public class LinearCorridorGenerator : TopologyGenerator
             frontWall.transform.localScale = new Vector3(width + wallThickness*2, height, wallThickness);
             frontWall.GetComponent<Renderer>().sharedMaterial = wallMaterial;
             
-            room.walls["front"] = new WallInfo
+            room.walls[WallNames.Front] = new WallInfo
             {
-                name = "front",
+                name = WallNames.Front,
                 startPoint = new Vector3(-halfWidth, 0, zOffset + length),  // Wall surface position (world space)
                 endPoint = new Vector3(halfWidth, 0, zOffset + length),
                 normal = Vector3.back, // Faces into corridor (-Z)

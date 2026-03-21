@@ -422,6 +422,4 @@ public class BranchingRoomsGenerator : TopologyGenerator
 
         return false;
     }
-
-    // Removed: EnsureDirectionalLight() — moved to base class TopologyGenerator
 }

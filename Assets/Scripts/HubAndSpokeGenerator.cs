@@ -536,6 +536,4 @@ public class HubAndSpokeGenerator : TopologyGenerator
 
         return false;
     }
-
-    // Removed: EnsureDirectionalLight() — moved to base class TopologyGenerator
 }

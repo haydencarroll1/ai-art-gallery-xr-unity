@@ -92,8 +92,6 @@ public class ManifestLoader : MonoBehaviour
         StartCoroutine(LoadFromLocalPathCoroutine(path, onComplete));
     }
 
-    // Removed: LoadFromPath() — dead method, never called
-
     private IEnumerator LoadFromLocalPathCoroutine(string path, Action<LoadResult> onComplete)
     {
         if (debugMode) Debug.Log($"[ManifestLoader] Loading from: {path}");
@@ -195,6 +193,4 @@ public class ManifestLoader : MonoBehaviour
             return LoadResult.Failure($"JSON parse error: {e.Message}");
         }
     }
-
-    // Removed: dead singleton (_instance field + Instance property) — nothing calls it
 }

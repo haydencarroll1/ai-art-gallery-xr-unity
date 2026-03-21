@@ -30,8 +30,6 @@ public class GalleryManifest
     // Cached wrapper built from the layout_plan list on first access.
     [NonSerialized] private LayoutPlanWrapper _layoutPlanCache;
 
-    // Removed: GetLayoutMap() and _layoutMapCache — dead method, only GetLayoutPlanWrapper() is used
-
     // Converts the List<RoomLayoutEntry> into a LayoutPlanWrapper with
     // separate dictionaries for rooms and alcoves, for fast typed lookup.
     // Used by TopologyGenerator.Generate() and other geometry code.
@@ -141,9 +139,6 @@ public class GalleryManifest
         return GalleryStyleIds.Contemporary;
     }
 
-    // Removed: GetImageCount() — dead method, never called
-    // Removed: GetSculptureCount() — dead method, never called
-
     // Look up an asset by its ID (used when matching placements to assets)
     public ArtworkAsset GetAssetById(string assetId)
     {
@@ -246,8 +241,6 @@ public class RoomConstraint
     public string type;         // "corridor", "alcove", "hub", "open_hall", "room_small", "room_medium"
     public string content_type; // "2d", "sculpture", "mixed"
     public int content_count;   // how many artworks go in this room
-
-    // Removed: position_along_parent, parent_wall, doorway_positions — obsolete legacy fields, no code reads them
 }
 
 // Backend-calculated feel values (not user-configured).

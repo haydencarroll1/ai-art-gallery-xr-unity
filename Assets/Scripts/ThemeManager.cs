@@ -403,8 +403,6 @@ public class ThemeManager : MonoBehaviour
     // Returns the active palette. Falls back to default so it never returns null.
     public ThemePalette GetPalette() => activePalette ?? BuiltInThemes[ThemeDefaults.Theme];
 
-    // Removed: GetColors() — dead legacy alias, never called
-
     private void Awake()
     {
         // Handle duplicate instances (e.g., scene reload)
@@ -458,8 +456,6 @@ public class ThemeManager : MonoBehaviour
 #endif
     }
     
-    // Removed: ApplyTheme() — dead wrapper for SetTheme, never called
-
     // Sets the active theme. Checks ScriptableObject overrides first, then
     // falls back to the built-in dictionary, then to default. Returns the palette.
     public ThemePalette SetTheme(string themeId, string moodId = null)
@@ -517,8 +513,6 @@ public class ThemeManager : MonoBehaviour
         return activePalette;
     }
     
-    // Removed: HasTheme() — dead method, never called
-
     // Adjusts the directional light colour and intensity based on mood.
     // Also sets ambient intensity and optional fog for ethereal mood.
     public void ApplyMoodLighting(string mood)

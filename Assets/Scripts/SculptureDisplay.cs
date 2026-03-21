@@ -236,9 +236,6 @@ public class SculptureDisplay : MonoBehaviour
             errorPlaceholder.SetActive(error);
         }
     }
-
-    // Removed: Clear() — never called; ClearAllArtwork destroys the whole GameObject
-
     // Fix: dispose GltfImport on destroy to free native mesh/texture memory
     private void OnDestroy()
     {

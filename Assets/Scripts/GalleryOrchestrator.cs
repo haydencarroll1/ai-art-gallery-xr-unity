@@ -79,8 +79,6 @@ public class GalleryOrchestrator : MonoBehaviour
 
     void Awake()
     {
-        // Removed: Application.targetFrameRate = 30 — XR runtime manages frame timing on Quest 3, forcing 30fps causes motion sickness
-
         // Make sure ManifestLoader and ArtworkPlacer exist on this GameObject.
         // If they're not already attached, add them automatically so the
         // orchestrator works without any manual Inspector setup.

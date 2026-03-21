@@ -245,8 +245,6 @@ public class WallSpaceManager
         return gaps;
     }
     
-    // Removed: ClearRoom() — dead method, only ClearAll() is used
-
     /// <summary>
     /// Clear all registered regions.
     /// </summary>
@@ -254,6 +252,4 @@ public class WallSpaceManager
     {
         wallRegions.Clear();
     }
-
-    // Removed: GetDebugInfo() — dead method, never called
 }

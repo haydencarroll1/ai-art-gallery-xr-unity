@@ -241,6 +241,4 @@ public class ImageDisplay : MonoBehaviour
             downloadedTexture = null;
         }
     }
-
-    // Removed: Clear() — dead method, ClearAllArtwork destroys the whole GameObject
 }

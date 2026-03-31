@@ -47,6 +47,14 @@ _archive/
 
 # Temp files
 .utmp/
+Assets/XR/Temp.meta
+
+# Burst compiler debug output
+*_BurstDebugInformation_DoNotShip/
+
+# Performance test runner artifacts
+Assets/Resources/PerformanceTestRun*.json
+Assets/Resources/PerformanceTestRun*.json.meta
 
 # Claude config
 .claude/

@@ -161,6 +161,7 @@ public class ImageDisplay : MonoBehaviour
 
         using (UnityWebRequest request = UnityWebRequestTexture.GetTexture(url))
         {
+            request.timeout = 30;
             yield return request.SendWebRequest();
 
             if (this == null || displayRenderer == null)

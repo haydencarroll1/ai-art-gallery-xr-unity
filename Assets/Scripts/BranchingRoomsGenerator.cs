@@ -157,6 +157,7 @@ public class BranchingRoomsGenerator : TopologyGenerator
         ceiling.transform.position = new Vector3(0f, height + 0.1f, startZ + halfD);
         ceiling.transform.localScale = new Vector3(width, 0.2f, depth);
         ceiling.GetComponent<Renderer>().sharedMaterial = ceilingMaterial;
+        var ceilingCol = ceiling.GetComponent<Collider>(); if (ceilingCol != null) Destroy(ceilingCol);
 
         if (!hasBackConnection)
         {

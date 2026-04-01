@@ -158,6 +158,7 @@ public class LinearWithAlcovesGenerator : TopologyGenerator
         ceiling.transform.localPosition = new Vector3(0, height + 0.1f, halfLength);
         ceiling.transform.localScale = new Vector3(width, 0.2f, length);
         ceiling.GetComponent<Renderer>().sharedMaterial = ceilingMaterial;
+        var ceilingCol = ceiling.GetComponent<Collider>(); if (ceilingCol != null) Destroy(ceilingCol);
 
         // Back wall (entry)
         GameObject backWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -363,6 +364,7 @@ public class LinearWithAlcovesGenerator : TopologyGenerator
             ceiling.transform.localPosition = new Vector3(centerX, height + 0.1f, centerZ);
             ceiling.transform.localScale = new Vector3(alcove.depth, 0.2f, alcove.width);
             ceiling.GetComponent<Renderer>().sharedMaterial = ceilingMaterial;
+            var alcoveCeilingCol = ceiling.GetComponent<Collider>(); if (alcoveCeilingCol != null) Destroy(alcoveCeilingCol);
 
             // Back wall (faces corridor)
             float backX = isLeft

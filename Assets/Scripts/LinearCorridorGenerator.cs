@@ -198,7 +198,8 @@ public class LinearCorridorGenerator : TopologyGenerator
         ceiling.transform.localPosition = new Vector3(0, height + 0.1f, halfLength);
         ceiling.transform.localScale = new Vector3(width, 0.2f, length);
         ceiling.GetComponent<Renderer>().sharedMaterial = ceilingMaterial;
-        
+        var ceilingCol = ceiling.GetComponent<Collider>(); if (ceilingCol != null) Destroy(ceilingCol);
+
         GameObject leftWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
         leftWall.name = "Wall_Left";
         leftWall.transform.SetParent(roomObj.transform);

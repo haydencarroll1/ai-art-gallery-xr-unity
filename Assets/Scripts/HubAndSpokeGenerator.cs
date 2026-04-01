@@ -238,6 +238,7 @@ public class HubAndSpokeGenerator : TopologyGenerator
         ceiling.transform.localPosition = new Vector3(0f, height + 0.1f, 0f);
         ceiling.transform.localScale = new Vector3(width, 0.2f, depth);
         ceiling.GetComponent<Renderer>().sharedMaterial = ceilingMaterial;
+        var ceilingCol = ceiling.GetComponent<Collider>(); if (ceilingCol != null) Destroy(ceilingCol);
 
         bool doorBack = isHub ? HasDoorway(dims.doorways, WallNames.Back) : spokeDoorWall == WallNames.Back;
         bool doorFront = isHub ? HasDoorway(dims.doorways, WallNames.Front) : spokeDoorWall == WallNames.Front;

@@ -109,6 +109,7 @@ public class OpenHallGenerator : TopologyGenerator
         ceiling.transform.localPosition = new Vector3(0f, height + 0.1f, 0f);
         ceiling.transform.localScale = new Vector3(width, 0.2f, depth);
         ceiling.GetComponent<Renderer>().sharedMaterial = ceilingMaterial;
+        var ceilingCol = ceiling.GetComponent<Collider>(); if (ceilingCol != null) Destroy(ceilingCol);
 
         CreateOuterWall(hallRoot.transform, "Wall_Back", width, height, -halfD, WallNames.Back, false, 0f, 0f);
         CreateOuterWall(hallRoot.transform, "Wall_Front", width, height, halfD, WallNames.Front, false, 0f, 0f);

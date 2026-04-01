@@ -70,7 +70,7 @@ public class ArtworkPlacer : MonoBehaviour
     // Track center sculptures per room for auto-distribution
     // Key: room_id, Value: (total count, current index)
     private Dictionary<string, (int total, int current)> centerSculptureCounters;
-    private string activeGalleryStyle = GalleryStyleIds.Contemporary;
+    private string activeGalleryStyle = GalleryStyleIds.Clean;
     private int spawnedArtworkSpotlights;
 
     public IReadOnlyList<ImageDisplay> ImageDisplays => imageDisplays;
@@ -845,18 +845,18 @@ public class ArtworkPlacer : MonoBehaviour
 
     private Color GetSpotlightColorForStyle(string normalizedRole)
     {
-        if (activeGalleryStyle == GalleryStyleIds.Classical)
+        if (activeGalleryStyle == GalleryStyleIds.Warm)
             return normalizedRole == "hero" ? Rgb(255, 230, 198) : Rgb(255, 235, 205);
-        if (activeGalleryStyle == GalleryStyleIds.Industrial)
+        if (activeGalleryStyle == GalleryStyleIds.Dark)
             return normalizedRole == "hero" ? Rgb(255, 246, 236) : Rgb(255, 251, 244);
         return normalizedRole == "hero" ? Rgb(255, 236, 214) : Rgb(255, 244, 229);
     }
 
     private float GetSpotlightStyleMultiplier()
     {
-        if (activeGalleryStyle == GalleryStyleIds.Classical)
+        if (activeGalleryStyle == GalleryStyleIds.Warm)
             return 0.85f;
-        if (activeGalleryStyle == GalleryStyleIds.Industrial)
+        if (activeGalleryStyle == GalleryStyleIds.Dark)
             return 1.15f;
         return 1f;
     }
@@ -879,11 +879,11 @@ public class ArtworkPlacer : MonoBehaviour
     private float GetFrameBorderWidthForStyle()
     {
         float baseWidth = Mathf.Max(0.015f, frameBorderWidth);
-        if (activeGalleryStyle == GalleryStyleIds.Classical)
+        if (activeGalleryStyle == GalleryStyleIds.Warm)
         {
             return Mathf.Clamp(baseWidth, 0.03f, 0.08f);
         }
-        if (activeGalleryStyle == GalleryStyleIds.Industrial)
+        if (activeGalleryStyle == GalleryStyleIds.Dark)
         {
             return Mathf.Clamp(baseWidth * 0.7f, 0.02f, 0.04f);
         }
@@ -907,7 +907,7 @@ public class ArtworkPlacer : MonoBehaviour
         Color pedestalColor = Rgb(220, 220, 220);
         float pedestalSmoothness = 0.22f;
 
-        if (activeGalleryStyle == GalleryStyleIds.Classical)
+        if (activeGalleryStyle == GalleryStyleIds.Warm)
         {
             borderColor = Rgb(180, 150, 90);
             borderMetallic = 0.3f;
@@ -915,7 +915,7 @@ public class ArtworkPlacer : MonoBehaviour
             pedestalColor = Rgb(214, 203, 185);
             pedestalSmoothness = 0.28f;
         }
-        else if (activeGalleryStyle == GalleryStyleIds.Industrial)
+        else if (activeGalleryStyle == GalleryStyleIds.Dark)
         {
             borderColor = Rgb(40, 40, 40);
             borderMetallic = 0f;

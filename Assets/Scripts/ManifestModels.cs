@@ -6,8 +6,8 @@ using System.Collections.Generic;
 // ManifestLoader parses the API response into these.
 //
 // The manifest has five top-level sections:
-//   locked_constraints  - what the user picked (topology, rooms, theme)
-//   derived_parameters  - backend-calculated values (mood, pacing, spacing)
+//   locked_constraints  - what the user picked (topology, rooms, gallery_style)
+//   derived_parameters  - backend-calculated values (pacing, spacing)
 //   layout_plan         - exact room dimensions in meters
 //   placement_plan      - where each artwork goes (wall, position, height)
 //   assets              - URLs + metadata for each artwork
@@ -95,48 +95,50 @@ public class GalleryManifest
         return lower;
     }
 
-    // Returns theme from locked_constraints
-    public string GetTheme()
-    {
-        if (locked_constraints != null && !string.IsNullOrEmpty(locked_constraints.theme))
-            return locked_constraints.theme;
-        return "modern";
-    }
-
-    // Returns gallery style from locked_constraints.gallery_style first,
-    // then top-level gallery_style. Defaults to contemporary.
     public string GetGalleryStyle()
     {
         if (locked_constraints != null && !string.IsNullOrEmpty(locked_constraints.gallery_style))
-        {
             return NormalizeGalleryStyle(locked_constraints.gallery_style);
-        }
 
         if (!string.IsNullOrEmpty(gallery_style))
-        {
             return NormalizeGalleryStyle(gallery_style);
-        }
 
-        return GalleryStyleIds.Contemporary;
+        return GalleryStyleIds.Clean;
     }
 
     private string NormalizeGalleryStyle(string input)
     {
-        if (string.IsNullOrEmpty(input))
-        {
-            return GalleryStyleIds.Contemporary;
-        }
+        if (string.IsNullOrEmpty(input)) return GalleryStyleIds.Clean;
 
         string lower = input.Trim().ToLowerInvariant();
 
-        if (lower == "classical")
-            return GalleryStyleIds.Classical;
-        if (lower == "industrial")
-            return GalleryStyleIds.Industrial;
-        if (lower == "contemporary" || lower == "white_cube" || lower == "whitecube" || lower == "moma")
-            return GalleryStyleIds.Contemporary;
-
-        return GalleryStyleIds.Contemporary;
+        switch (lower)
+        {
+            case "clean":
+            case "contemporary":
+            case "modern":
+            case "minimalist":
+            case "white_cube":
+            case "whitecube":
+            case "moma":
+                return GalleryStyleIds.Clean;
+            case "warm":
+            case "classical":
+            case "renaissance":
+            case "asian":
+            case "nature":
+            case "desert":
+                return GalleryStyleIds.Warm;
+            case "dark":
+            case "industrial":
+            case "gothic":
+            case "futuristic":
+            case "neon":
+            case "ethereal":
+                return GalleryStyleIds.Dark;
+            default:
+                return GalleryStyleIds.Clean;
+        }
     }
 
     // Look up an asset by its ID (used when matching placements to assets)
@@ -223,12 +225,9 @@ public class GalleryManifest
 [Serializable]
 public class LockedConstraints
 {
-    // "linear_corridor", "linear_with_alcoves", "branching_rooms", "hub_and_spoke", "open_hall"
     public string topology;
     public List<RoomConstraint> rooms;
-    // "classical", "modern", "gothic", "nature", etc.
-    public string theme;
-    // "contemporary", "classical", "industrial" (optional)
+    // "clean", "warm", "dark"
     public string gallery_style;
 }
 
@@ -247,7 +246,6 @@ public class RoomConstraint
 [Serializable]
 public class DerivedParameters
 {
-    public string mood;           // "serene", "dramatic", "playful", "contemplative", "energetic"
     public float pacing;          // 0 = sparse/slow, 1 = dense/fast
     public float target_spacing_m; // meters between artworks
 }
@@ -545,9 +543,9 @@ public static class ContentTypes
 
 public static class GalleryStyleIds
 {
-    public const string Contemporary = "contemporary";
-    public const string Classical = "classical";
-    public const string Industrial = "industrial";
+    public const string Clean = "clean";
+    public const string Warm = "warm";
+    public const string Dark = "dark";
 }
 
 public static class WallNames

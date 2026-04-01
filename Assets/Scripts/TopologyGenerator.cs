@@ -14,9 +14,9 @@ using UnityEngine;
 
 public enum GalleryStyle
 {
-    Contemporary,
-    Classical,
-    Industrial
+    Clean,
+    Warm,
+    Dark
 }
 
 public abstract class TopologyGenerator : MonoBehaviour
@@ -46,7 +46,7 @@ public abstract class TopologyGenerator : MonoBehaviour
     // Optional manifest context used for style parsing and deterministic variation.
     protected GalleryManifest manifestContext;
     protected LockedConstraints generationConstraints;
-    protected GalleryStyle galleryStyle = GalleryStyle.Contemporary;
+    protected GalleryStyle galleryStyle = GalleryStyle.Clean;
     protected int styleSeed = 1;
     protected const float CeilingLightSpacingMultiplier = 1.5f;
     protected readonly List<Texture2D> generatedTextures = new List<Texture2D>();
@@ -604,22 +604,19 @@ public abstract class TopologyGenerator : MonoBehaviour
 
     protected GalleryStyle ParseGalleryStyle(string style)
     {
-        if (string.IsNullOrEmpty(style))
-        {
-            return GalleryStyle.Contemporary;
-        }
+        if (string.IsNullOrEmpty(style)) return GalleryStyle.Clean;
 
-        string normalized = style.Trim().ToLowerInvariant();
-        if (normalized == "classical")
+        switch (style.Trim().ToLowerInvariant())
         {
-            return GalleryStyle.Classical;
+            case "warm":
+            case "classical":
+                return GalleryStyle.Warm;
+            case "dark":
+            case "industrial":
+                return GalleryStyle.Dark;
+            default:
+                return GalleryStyle.Clean;
         }
-        if (normalized == "industrial")
-        {
-            return GalleryStyle.Industrial;
-        }
-
-        return GalleryStyle.Contemporary;
     }
 
     private int ComputeStyleSeed()
@@ -627,7 +624,7 @@ public abstract class TopologyGenerator : MonoBehaviour
         int seed = 17;
         seed = seed * 31 + HashString(manifestContext?.gallery_id);
         seed = seed * 31 + HashString(manifestContext?.created_at);
-        seed = seed * 31 + HashString(generationConstraints?.theme);
+        seed = seed * 31 + HashString(generationConstraints?.gallery_style);
         seed = seed * 31 + (int)galleryStyle * 97;
         return Mathf.Abs(seed);
     }
@@ -684,32 +681,32 @@ public abstract class TopologyGenerator : MonoBehaviour
 
         switch (galleryStyle)
         {
-            case GalleryStyle.Classical:
-                InitializeClassicalMaterials();
+            case GalleryStyle.Warm:
+                InitializeWarmMaterials();
                 break;
 
-            case GalleryStyle.Industrial:
-                InitializeIndustrialMaterials();
+            case GalleryStyle.Dark:
+                InitializeDarkMaterials();
                 break;
 
-            case GalleryStyle.Contemporary:
+            case GalleryStyle.Clean:
             default:
-                InitializeContemporaryMaterials();
+                InitializeCleanMaterials();
                 break;
         }
 
         ApplyStyleLightingEnvironment();
     }
 
-    private void InitializeContemporaryMaterials()
+    private void InitializeCleanMaterials()
     {
         Color wallColor = Rgb(246, 246, 244);
         Color floorColor = Rgb(120, 120, 116);
         Color ceilingColor = Rgb(34, 34, 36);
 
-        Texture2D wallTexture = CreateWallTexture(GalleryStyle.Contemporary, wallColor);
+        Texture2D wallTexture = CreateWallTexture(GalleryStyle.Clean, wallColor);
         Texture2D floorTexture = CreateConcreteTexture("ContemporaryConcreteFloorTex", Rgb(118, 118, 114), Rgb(95, 95, 92), 0.12f);
-        Texture2D ceilingTexture = CreateCeilingTexture(GalleryStyle.Contemporary, ceilingColor);
+        Texture2D ceilingTexture = CreateCeilingTexture(GalleryStyle.Clean, ceilingColor);
 
         wallMaterial = CreateMaterial("Wall_Contemporary", wallColor, metallic: 0f, smoothness: 0.08f, baseMap: wallTexture, tiling: new Vector2(4f, 4f));
         floorMaterial = CreateMaterial("Floor_Contemporary", floorColor, metallic: 0f, smoothness: 0.18f, baseMap: floorTexture, tiling: new Vector2(5f, 5f));
@@ -717,16 +714,16 @@ public abstract class TopologyGenerator : MonoBehaviour
         trimMaterial = CreateMaterial("Trim_Contemporary", Rgb(255, 255, 255), metallic: 0f, smoothness: 0.28f);
     }
 
-    private void InitializeClassicalMaterials()
+    private void InitializeWarmMaterials()
     {
         Color wallColor = PickClassicalWallColor();
         Color floorColor = Rgb(110, 78, 52);
         Color ceilingColor = Rgb(250, 248, 243);
         Color trimColor = Rgb(244, 238, 226);
 
-        Texture2D wallTexture = CreateWallTexture(GalleryStyle.Classical, wallColor);
+        Texture2D wallTexture = CreateWallTexture(GalleryStyle.Warm, wallColor);
         Texture2D floorTexture = CreateClassicalFloorTexture();
-        Texture2D ceilingTexture = CreateCeilingTexture(GalleryStyle.Classical, ceilingColor);
+        Texture2D ceilingTexture = CreateCeilingTexture(GalleryStyle.Warm, ceilingColor);
 
         wallMaterial = CreateMaterial("Wall_Classical", wallColor, metallic: 0f, smoothness: 0.2f, baseMap: wallTexture, tiling: new Vector2(3.5f, 3.5f));
         floorMaterial = CreateMaterial("Floor_Classical", floorColor, metallic: 0f, smoothness: 0.28f, baseMap: floorTexture, tiling: new Vector2(8f, 8f));
@@ -734,15 +731,15 @@ public abstract class TopologyGenerator : MonoBehaviour
         trimMaterial = CreateMaterial("Trim_Classical", trimColor, metallic: 0.01f, smoothness: 0.34f);
     }
 
-    private void InitializeIndustrialMaterials()
+    private void InitializeDarkMaterials()
     {
         Color wallColor = Rgb(122, 84, 65);
         Color floorColor = Rgb(82, 82, 78);
         Color ceilingColor = Rgb(58, 58, 56);
 
-        Texture2D wallTexture = CreateWallTexture(GalleryStyle.Industrial, wallColor);
+        Texture2D wallTexture = CreateWallTexture(GalleryStyle.Dark, wallColor);
         Texture2D floorTexture = CreateIndustrialFloorTexture();
-        Texture2D ceilingTexture = CreateCeilingTexture(GalleryStyle.Industrial, ceilingColor);
+        Texture2D ceilingTexture = CreateCeilingTexture(GalleryStyle.Dark, ceilingColor);
 
         wallMaterial = CreateMaterial("Wall_Industrial", wallColor, metallic: 0f, smoothness: 0.07f, baseMap: wallTexture, tiling: new Vector2(5f, 5f));
         floorMaterial = CreateMaterial("Floor_Industrial", floorColor, metallic: 0.03f, smoothness: 0.2f, baseMap: floorTexture, tiling: new Vector2(4f, 4f));
@@ -767,11 +764,11 @@ public abstract class TopologyGenerator : MonoBehaviour
     {
         switch (style)
         {
-            case GalleryStyle.Classical:
+            case GalleryStyle.Warm:
                 return CreateClassicalWallTexture(baseColor);
-            case GalleryStyle.Industrial:
+            case GalleryStyle.Dark:
                 return CreateIndustrialWallTexture();
-            case GalleryStyle.Contemporary:
+            case GalleryStyle.Clean:
             default:
                 return CreateContemporaryWallTexture(baseColor);
         }
@@ -781,11 +778,11 @@ public abstract class TopologyGenerator : MonoBehaviour
     {
         switch (style)
         {
-            case GalleryStyle.Classical:
+            case GalleryStyle.Warm:
                 return CreateClassicalCeilingTexture(baseColor);
-            case GalleryStyle.Industrial:
+            case GalleryStyle.Dark:
                 return CreateIndustrialCeilingTexture(baseColor);
-            case GalleryStyle.Contemporary:
+            case GalleryStyle.Clean:
             default:
                 return CreateContemporaryCeilingTexture(baseColor);
         }
@@ -1124,13 +1121,13 @@ public abstract class TopologyGenerator : MonoBehaviour
     {
         switch (galleryStyle)
         {
-            case GalleryStyle.Classical:
+            case GalleryStyle.Warm:
                 return Rgb(255, 224, 191); // warm
 
-            case GalleryStyle.Industrial:
+            case GalleryStyle.Dark:
                 return Rgb(218, 230, 255); // cool
 
-            case GalleryStyle.Contemporary:
+            case GalleryStyle.Clean:
             default:
                 return Rgb(242, 244, 246); // neutral-cool
         }
@@ -1140,11 +1137,11 @@ public abstract class TopologyGenerator : MonoBehaviour
     {
         switch (galleryStyle)
         {
-            case GalleryStyle.Classical:
+            case GalleryStyle.Warm:
                 return GetStyleLightColor();
-            case GalleryStyle.Industrial:
+            case GalleryStyle.Dark:
                 return Rgb(212, 220, 232);
-            case GalleryStyle.Contemporary:
+            case GalleryStyle.Clean:
             default:
                 return Rgb(238, 240, 244);
         }
@@ -1187,11 +1184,11 @@ public abstract class TopologyGenerator : MonoBehaviour
     {
         switch (galleryStyle)
         {
-            case GalleryStyle.Classical:
+            case GalleryStyle.Warm:
                 return 0.14f;
-            case GalleryStyle.Industrial:
+            case GalleryStyle.Dark:
                 return 0.08f;
-            case GalleryStyle.Contemporary:
+            case GalleryStyle.Clean:
             default:
                 return 0.12f;
         }
@@ -1201,11 +1198,11 @@ public abstract class TopologyGenerator : MonoBehaviour
     {
         switch (galleryStyle)
         {
-            case GalleryStyle.Classical:
+            case GalleryStyle.Warm:
                 return 0.18f;
-            case GalleryStyle.Industrial:
+            case GalleryStyle.Dark:
                 return 0.12f;
-            case GalleryStyle.Contemporary:
+            case GalleryStyle.Clean:
             default:
                 return 0.16f;
         }
@@ -1217,15 +1214,15 @@ public abstract class TopologyGenerator : MonoBehaviour
         float maxIntensity;
         switch (galleryStyle)
         {
-            case GalleryStyle.Classical:
+            case GalleryStyle.Warm:
                 multiplier = 0.32f;
                 maxIntensity = 0.38f;
                 break;
-            case GalleryStyle.Industrial:
+            case GalleryStyle.Dark:
                 multiplier = 0.2f;
                 maxIntensity = 0.25f;
                 break;
-            case GalleryStyle.Contemporary:
+            case GalleryStyle.Clean:
             default:
                 multiplier = 0.24f;
                 maxIntensity = 0.3f;
@@ -1240,13 +1237,13 @@ public abstract class TopologyGenerator : MonoBehaviour
         float multiplier = 1f;
         switch (galleryStyle)
         {
-            case GalleryStyle.Classical:
+            case GalleryStyle.Warm:
                 multiplier = 0.72f;
                 break;
-            case GalleryStyle.Industrial:
+            case GalleryStyle.Dark:
                 multiplier = 0.68f;
                 break;
-            case GalleryStyle.Contemporary:
+            case GalleryStyle.Clean:
             default:
                 multiplier = 0.75f;
                 break;
@@ -1343,7 +1340,7 @@ public abstract class TopologyGenerator : MonoBehaviour
 
             switch (galleryStyle)
             {
-                case GalleryStyle.Classical:
+                case GalleryStyle.Warm:
                     GenerateBaseboard(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY, 0.12f, 0.025f, $"Baseboard_{suffix}");
                     GenerateChairRail(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + 1.0f, 0.04f, 0.018f, $"ChairRail_{suffix}");
                     GenerateWainscotingPanels(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY, 1.0f);
@@ -1351,13 +1348,13 @@ public abstract class TopologyGenerator : MonoBehaviour
                     GenerateCeilingCornice(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + wallHeight, $"Cornice_{suffix}");
                     addedTrim = true;
                     break;
-                case GalleryStyle.Industrial:
+                case GalleryStyle.Dark:
                     GenerateKickPlate(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY, $"KickPlate_{suffix}");
                     GenerateConduitRail(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + Mathf.Min(2.5f, wallHeight - 0.3f), $"Conduit_{suffix}");
                     GenerateCeilingBeam(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + wallHeight - 0.08f, 0.05f, $"Beam_{suffix}");
                     addedTrim = true;
                     break;
-                case GalleryStyle.Contemporary:
+                case GalleryStyle.Clean:
                 default:
                     GenerateBaseboard(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY, 0.1f, 0.022f, $"Baseboard_{suffix}");
                     GeneratePictureRail(trimRoot.transform, wall.startPoint, wall.endPoint, wall.normal, floorY + Mathf.Min(2.2f, wallHeight - 0.3f), $"PictureRail_{suffix}");
@@ -1369,7 +1366,7 @@ public abstract class TopologyGenerator : MonoBehaviour
         }
 
         // Corner details (pilasters at wall junctions)
-        if (generatedRoom != null && galleryStyle != GalleryStyle.Industrial)
+        if (generatedRoom != null && galleryStyle != GalleryStyle.Dark)
         {
             GenerateRoomCornerDetails(trimRoot.transform, generatedRoom);
             addedTrim = true;
@@ -1709,8 +1706,8 @@ public abstract class TopologyGenerator : MonoBehaviour
 
         float floorY = room.floorY;
         float height = room.dimensions?.height ?? 3f;
-        float pilasterWidth = galleryStyle == GalleryStyle.Classical ? 0.08f : 0.05f;
-        float pilasterDepth = galleryStyle == GalleryStyle.Classical ? 0.035f : 0.02f;
+        float pilasterWidth = galleryStyle == GalleryStyle.Warm ? 0.08f : 0.05f;
+        float pilasterDepth = galleryStyle == GalleryStyle.Warm ? 0.035f : 0.02f;
 
         // Find pairs of walls that share a corner (endpoint of one ~ startpoint of another)
         List<WallInfo> wallList = new List<WallInfo>(room.walls.Values);
@@ -1859,8 +1856,8 @@ public abstract class TopologyGenerator : MonoBehaviour
         spotRoot.transform.localPosition = Vector3.zero;
         spotRoot.transform.localRotation = Quaternion.identity;
 
-        float spacing = galleryStyle == GalleryStyle.Classical ? 2.5f : 2.8f;
-        int maxSpotlights = galleryStyle == GalleryStyle.Industrial ? 18 : 24;
+        float spacing = galleryStyle == GalleryStyle.Warm ? 2.5f : 2.8f;
+        int maxSpotlights = galleryStyle == GalleryStyle.Dark ? 18 : 24;
         int created = 0;
 
         foreach (GeneratedRoom room in generatedRooms.Values)
@@ -1978,17 +1975,17 @@ public abstract class TopologyGenerator : MonoBehaviour
             {
                 switch (galleryStyle)
                 {
-                    case GalleryStyle.Classical:
+                    case GalleryStyle.Warm:
                         overrideColor = GetClassicalWallVariation(renderer);
                         smoothness = Mathf.Lerp(0.3f, 0.4f, GetVariationNoise(renderer.bounds.center, 0.6f));
                         metallic = 0f;
                         break;
-                    case GalleryStyle.Industrial:
+                    case GalleryStyle.Dark:
                         overrideColor = GetIndustrialWallVariation(renderer, room);
                         smoothness = Mathf.Lerp(0.05f, 0.1f, GetVariationNoise(renderer.bounds.center, 0.75f));
                         metallic = 0f;
                         break;
-                    case GalleryStyle.Contemporary:
+                    case GalleryStyle.Clean:
                     default:
                         overrideColor = GetContemporaryWallVariation(renderer);
                         smoothness = Mathf.Lerp(0.1f, 0.2f, GetVariationNoise(renderer.bounds.center, 0.7f));
@@ -2000,17 +1997,17 @@ public abstract class TopologyGenerator : MonoBehaviour
             {
                 switch (galleryStyle)
                 {
-                    case GalleryStyle.Classical:
+                    case GalleryStyle.Warm:
                         overrideColor = OffsetColor(Rgb(250, 248, 243), (GetVariationNoise(renderer.bounds.center, 0.4f) - 0.5f) * 0.014f);
                         smoothness = 0.12f;
                         metallic = 0f;
                         break;
-                    case GalleryStyle.Industrial:
+                    case GalleryStyle.Dark:
                         overrideColor = OffsetColor(Rgb(58, 58, 56), (GetVariationNoise(renderer.bounds.center, 0.5f) - 0.5f) * 0.018f);
                         smoothness = 0.04f;
                         metallic = 0f;
                         break;
-                    case GalleryStyle.Contemporary:
+                    case GalleryStyle.Clean:
                     default:
                         overrideColor = OffsetColor(Rgb(34, 34, 36), (GetVariationNoise(renderer.bounds.center, 0.5f) - 0.5f) * 0.02f);
                         smoothness = 0.03f;
@@ -2161,11 +2158,11 @@ public abstract class TopologyGenerator : MonoBehaviour
     {
         switch (galleryStyle)
         {
-            case GalleryStyle.Classical:
+            case GalleryStyle.Warm:
                 return 1.5f;
-            case GalleryStyle.Industrial:
+            case GalleryStyle.Dark:
                 return 2.5f;
-            case GalleryStyle.Contemporary:
+            case GalleryStyle.Clean:
             default:
                 return 2f;
         }
@@ -2175,11 +2172,11 @@ public abstract class TopologyGenerator : MonoBehaviour
     {
         switch (galleryStyle)
         {
-            case GalleryStyle.Classical:
+            case GalleryStyle.Warm:
                 return 4.2f;
-            case GalleryStyle.Industrial:
+            case GalleryStyle.Dark:
                 return 5f;
-            case GalleryStyle.Contemporary:
+            case GalleryStyle.Clean:
             default:
                 return 4.6f;
         }
@@ -2189,11 +2186,11 @@ public abstract class TopologyGenerator : MonoBehaviour
     {
         switch (galleryStyle)
         {
-            case GalleryStyle.Classical:
+            case GalleryStyle.Warm:
                 return 45f;
-            case GalleryStyle.Industrial:
+            case GalleryStyle.Dark:
                 return 55f;
-            case GalleryStyle.Contemporary:
+            case GalleryStyle.Clean:
             default:
                 return 50f;
         }

@@ -116,6 +116,12 @@ public class GalleryOrchestrator : MonoBehaviour
 
     public void LoadGallery()
     {
+        if (loadState != GalleryLoadState.Idle && loadState != GalleryLoadState.Complete && loadState != GalleryLoadState.Failed)
+        {
+            Debug.LogWarning("[GalleryOrchestrator] Load already in progress");
+            return;
+        }
+
         if (useEmbeddedTestManifest)
         {
             LoadFromEmbeddedTestManifest();
@@ -241,17 +247,10 @@ public class GalleryOrchestrator : MonoBehaviour
         }
 
         loadState = GalleryLoadState.ApplyingTheme;
-        UpdateStatus("Applying theme...");
+        UpdateStatus("Applying style...");
 
-        string theme = currentManifest.GetTheme();
-        string mood = currentManifest.derived_parameters?.mood ?? "calm";
-
-        if (ThemeManager.Instance != null)
-        {
-            ThemeManager.Instance.SetTheme(theme, mood);
-            ThemeManager.Instance.ApplyMoodLighting(mood);
-            ThemeManager.Instance.ApplyAtmosphere(theme, mood);
-        }
+        string style = currentManifest.GetGalleryStyle();
+        ThemeManager.Instance?.SetStyle(style);
 
         yield return null;
 
@@ -539,17 +538,14 @@ public class GalleryOrchestrator : MonoBehaviour
   ""gallery_id"": ""test_linear_001"",
   ""schema_version"": ""2.0"",
   ""created_at"": ""2025-01-29T12:00:00Z"",
-  ""gallery_style"": ""contemporary"",
   ""locked_constraints"": {
     ""topology"": ""linear_corridor"",
+    ""gallery_style"": ""clean"",
     ""rooms"": [
       { ""id"": ""main"", ""type"": ""corridor"", ""content_type"": ""2d"", ""content_count"": 6 }
-    ],
-    ""theme"": ""modern"",
-    ""gallery_style"": ""contemporary""
+    ]
   },
   ""derived_parameters"": {
-    ""mood"": ""calm"",
     ""pacing"": 0.5,
     ""target_spacing_m"": 2.5
   },
